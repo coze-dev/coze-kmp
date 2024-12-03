@@ -1,5 +1,6 @@
 package com.coze.api
 
+import com.coze.api.chat.ChatService
 import kotlinx.datetime.*
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
@@ -10,7 +11,7 @@ import kotlin.time.Duration.Companion.seconds
 
 class Greeting {
     private val platform = getPlatform()
-    private val api = ApiBase()
+    private val chatService = ChatService()
 
     fun daysPhrase(): String {
         val today = Clock.System.todayIn(TimeZone.currentSystemDefault())
@@ -26,7 +27,7 @@ class Greeting {
         emit("Visiting the chat v3 API! > ${platform.name}")
         delay(1.seconds)
         emit(daysPhrase())
-        emit(api.launchPhrase())
+        emit(chatService.getChatData())
     }
 
 }

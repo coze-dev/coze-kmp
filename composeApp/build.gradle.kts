@@ -7,8 +7,10 @@ plugins {
     alias(libs.plugins.androidApplication)
     alias(libs.plugins.composeMultiplatform)
     alias(libs.plugins.composeCompiler)
-    // my plugins
+    // http client plugins
     kotlin("plugin.serialization") version "2.0.0"
+    // ios plugins
+    id("co.touchlab.skie") version "0.9.5"
 }
 
 kotlin {
@@ -49,6 +51,7 @@ kotlin {
             implementation(libs.ktor.client.core)
             implementation(libs.ktor.client.content.negotiation)
             implementation(libs.ktor.serialization.kotlinx.json)
+            implementation(libs.ktor.client.logging)
         }
         androidMain.dependencies {
             implementation(compose.preview)

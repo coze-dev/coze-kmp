@@ -10,23 +10,23 @@ import kotlin.time.Duration.Companion.seconds
 
 class Greeting {
     private val platform = getPlatform()
-    private val rocketComponent = ApiBase()
+    private val api = ApiBase()
 
     fun daysPhrase(): String {
         val today = Clock.System.todayIn(TimeZone.currentSystemDefault())
         val closestNewYear = LocalDate(today.year + 1, 1, 1)
         val leftDays = today.daysUntil(closestNewYear)
 
-        return "Hello, it's $leftDays days from new year!"
+        return "While waiting, let me tell you the TRUTH: it's $leftDays days from new year!"
     }
 
     fun greet(): Flow<String> = flow {
         emit(if (Random.nextBoolean()) "Hi!" else "Hello!")
         delay(1.seconds)
-        emit("Guess what this is! > ${platform.name.reversed()}")
+        emit("Visiting the chat v3 API! > ${platform.name}")
         delay(1.seconds)
         emit(daysPhrase())
-        emit(rocketComponent.launchPhrase())
+        emit(api.launchPhrase())
     }
 
 }

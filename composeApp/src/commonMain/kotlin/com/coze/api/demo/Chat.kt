@@ -28,13 +28,14 @@ class ChatDemo {
         emit("(Response arrived. chat_id=${data.id}, conversation_id=${data.conversationId})")
     }
 
-    fun streamTest(): Flow<String> = flow {
+    fun streamTest(msg: String=""): Flow<String> = flow {
+        val messageContent = msg.ifBlank { "Tell me 3 famous jokes" }
         val streamFlow = chatService.stream(
             ChatRequest(
                 botId = defaultBotId,
                 userId = defaultUserId,
                 additionalMessages = listOf(
-                    Message(role = "user", content = "Tell me 3 famous jokes")
+                    Message(role = "user", content = messageContent)
                 )
             )
         )
@@ -47,9 +48,8 @@ class ChatDemo {
         }
     }
 
-    fun noneStreamCreateAndPoll(): Flow<String> = flow {
-        val greeting = "hi there"
-        emit(greeting)
+    fun noneStreamCreateAndPoll(msg: String=""): Flow<String> = flow {
+        val messageContent = msg.ifBlank { "Tell me 3 famous jokes" }
         emit("(Visiting the chat v3 API!)...")
 
         // Send request to get data
@@ -57,7 +57,7 @@ class ChatDemo {
             ChatRequest(
                 botId = defaultBotId,
                 userId = defaultUserId,
-                additionalMessages = listOf(Message(role = "user", content = greeting))
+                additionalMessages = listOf(Message(role = "user", content = messageContent))
             )
         )
         emit("(Response arrived.)")

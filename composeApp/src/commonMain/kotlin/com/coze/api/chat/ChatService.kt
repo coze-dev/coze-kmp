@@ -49,11 +49,16 @@ class ChatService : BaseHttpClient() {
         val conversationId = result.data.conversationId
         var chat: CreateChatData?
 
+        val startTime = Clock.System.now()
+        val timeout = 60000 
         while (true) {
             delay(500)
             chat = retrieveChat(conversationId, chatId)
             if (chat.status in listOf(ChatStatus.COMPLETED, ChatStatus.FAILED, ChatStatus.REQUIRES_ACTION)) {
                 break
+            }
+            if (Clock.System.now().toEpochMilliseconds() - startTime.toEpochMilliseconds() > timeout) {
+                throw Exception("轮询超时")
             }
         }
 
@@ -67,6 +72,7 @@ class ChatService : BaseHttpClient() {
         chatId: String, 
         options: RequestOptions? = null
     ): CreateChatData {
+        println("retrieving...")
         val apiUrl = "/v3/chat/retrieve?conversation_id=$conversationId&chat_id=$chatId"
         val response: HttpResponse = makeRequest(apiUrl, HttpMethod.Post, null, options)
         val result: ApiResponse<CreateChatData> = response.body()

@@ -25,6 +25,7 @@ data class RequestOptions(
 open class BaseHttpClient {
     private val apiUrlPrefix = "https://api.coze.com/"
     private val ua = "ktor client"
+    // For test, which is now invalid.
     private val token = "pat_EuEHpAsdJD5tbf34HI1cfj7qGltE0ySwAqLpMb3jBlZwpbdxEovovVb9T3lR4i90"
 
     private val httpClient = HttpClient {

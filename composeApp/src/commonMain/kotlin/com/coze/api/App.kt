@@ -17,8 +17,6 @@ import cozeapi.composeapp.generated.resources.Res
 import cozeapi.composeapp.generated.resources.compose_multiplatform
 
 // custom
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
 
 @Composable
 @Preview
@@ -30,10 +28,9 @@ fun App() {
                 Text("Click me!")
             }
             AnimatedVisibility(showContent) {
-                val greeting = remember { Greeting().daysPhrase() }
                 Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
                     Image(painterResource(Res.drawable.compose_multiplatform), null)
-                    Text("Compose: $greeting")
+                    Text("Hi")
                 }
             }
         }

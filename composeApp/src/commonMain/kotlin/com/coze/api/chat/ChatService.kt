@@ -1,9 +1,10 @@
 package com.coze.api.chat
 
+import com.coze.api.helper.APIClient
+import com.coze.api.helper.RequestOptions
 import com.coze.api.model.chat.*
 import com.coze.api.model.ApiResponse
 import com.coze.api.model.ChatEventType
-import io.ktor.client.call.*
 import io.ktor.client.statement.HttpResponse
 import io.ktor.http.HttpMethod
 import kotlinx.coroutines.delay
@@ -11,11 +12,12 @@ import kotlinx.datetime.Clock
 import kotlin.random.Random
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
+import kotlinx.serialization.serializer
 
 fun generateUUID(): String = 
     (Random.nextDouble() * Clock.System.now().toEpochMilliseconds()).toString()
 
-class ChatService : BaseHttpClient() {
+class ChatService(token: String) : APIClient(token) {
 
     suspend fun createChat(
         params: CreateChatReq, 
@@ -27,9 +29,13 @@ class ChatService : BaseHttpClient() {
             additionalMessages = handleAdditionalMessages(params.additionalMessages),
             stream = false
         )
-        val response: HttpResponse = makeRequest(apiUrl, HttpMethod.Post, payload, options)
-        val result: ApiResponse<CreateChatData> = response.body()
-        return result.data
+        val response = post(
+            path = apiUrl,
+            payload = payload,
+            serializer = serializer<ApiResponse<CreateChatData>>(),
+            options = options
+        )
+        return response.data
     }
 
     suspend fun createAndPollChat(
@@ -42,11 +48,15 @@ class ChatService : BaseHttpClient() {
             additionalMessages = handleAdditionalMessages(params.additionalMessages),
             stream = false
         )
-        val response: HttpResponse = makeRequest(apiUrl, HttpMethod.Post, payload, options)
-        val result: ApiResponse<CreateChatData> = response.body()
+        val response = post(
+            path = apiUrl,
+            payload = payload,
+            serializer = serializer<ApiResponse<CreateChatData>>(),
+            options = options
+        )
 
-        val chatId = result.data.id
-        val conversationId = result.data.conversationId
+        val chatId = response.data.id
+        val conversationId = response.data.conversationId
         var chat: CreateChatData?
 
         val startTime = Clock.System.now()
@@ -74,9 +84,13 @@ class ChatService : BaseHttpClient() {
     ): CreateChatData {
         println("retrieving...")
         val apiUrl = "/v3/chat/retrieve?conversation_id=$conversationId&chat_id=$chatId"
-        val response: HttpResponse = makeRequest(apiUrl, HttpMethod.Post, null, options)
-        val result: ApiResponse<CreateChatData> = response.body()
-        return result.data
+        val response = post(
+            path = apiUrl,
+            payload = null,
+            serializer = serializer<ApiResponse<CreateChatData>>(),
+            options = options
+        )
+        return response.data
     }
 
     suspend fun cancelChat(
@@ -86,9 +100,29 @@ class ChatService : BaseHttpClient() {
     ): CreateChatData {
         val apiUrl = "/v3/chat/cancel"
         val payload = mapOf("conversation_id" to conversationId, "chat_id" to chatId)
-        val response: HttpResponse = makeRequest(apiUrl, HttpMethod.Post, payload, options)
-        val result: ApiResponse<CreateChatData> = response.body()
-        return result.data
+        val response = post(
+            path = apiUrl,
+            payload = payload,
+            serializer = serializer<ApiResponse<CreateChatData>>(),
+            options = options
+        )
+        return response.data
+    }
+
+    private suspend fun listMessages(
+        conversationId: String, 
+        chatId: String
+    ): List<ChatV3Message> {
+        val apiUrl = "/v3/chat/message/list?conversation_id=$conversationId&chat_id=$chatId"
+        val response = get(
+            path = apiUrl,
+            serializer = serializer<ApiResponse<List<ChatV3Message>>>()
+        )
+        return response.data
+    }
+
+    private fun handleAdditionalMessages(additionalMessages: List<Message>?): List<Message>? {
+        return additionalMessages?.map { it.copy(content = it.content ?: "") }
     }
 
     fun stream(
@@ -102,7 +136,7 @@ class ChatService : BaseHttpClient() {
             stream = true
         )
 
-        val eventFlow = sse(apiUrl, payload, options ?: RequestOptions())
+        val eventFlow = sse(apiUrl, payload, true, options ?: RequestOptions())
         eventFlow.collect { event ->
             val chatData = sseEvent2ChatData(event)
             emit(chatData)
@@ -112,19 +146,5 @@ class ChatService : BaseHttpClient() {
                 return@collect
             }
         }
-    }
-
-    private fun handleAdditionalMessages(additionalMessages: List<Message>?): List<Message>? {
-        return additionalMessages?.map { it.copy(content = it.content ?: "") }
-    }
-
-    private suspend fun listMessages(
-        conversationId: String, 
-        chatId: String
-    ): List<ChatV3Message> {
-        val apiUrl = "/v3/chat/message/list?conversation_id=$conversationId&chat_id=$chatId"
-        val response: HttpResponse = makeRequest(apiUrl, HttpMethod.Get)
-        val result: ApiResponse<List<ChatV3Message>> = response.body()
-        return result.data
     }
 }

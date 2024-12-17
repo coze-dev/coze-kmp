@@ -1,4 +1,4 @@
-package com.coze.api.demo
+package com.coze.demo
 
 import com.coze.api.chat.ChatService
 import com.coze.api.model.ChatEventType
@@ -6,8 +6,9 @@ import com.coze.api.model.chat.*
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 
+val PAT_TOKEN = "pat_EuEHpAsdJD5tbf34HI1cfj7qGltE0ySwAqLpMb3jBlZwpbdxEovovVb9T3lR4i90"
 class ChatDemo {
-    private val chatService = ChatService()
+    private val chatService = ChatService(PAT_TOKEN)
 
     private val defaultBotId = "7373880376026103809"
     private val defaultUserId = "007"

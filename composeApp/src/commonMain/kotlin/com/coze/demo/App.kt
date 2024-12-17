@@ -1,4 +1,4 @@
-package com.coze.api
+package com.coze.demo
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -7,25 +7,29 @@ import androidx.compose.material.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.coze.api.demo.ChatDemo
 import org.jetbrains.compose.ui.tooling.preview.Preview
 import kotlinx.coroutines.launch
 
+@OptIn(ExperimentalLayoutApi::class)
 @Preview
 @Composable
 fun App() {
+    val authDemo = AuthDemo
+    val coroutineScope = rememberCoroutineScope()
+
     MaterialTheme {
         var inputText by remember { mutableStateOf("Why is the sky always blue") }
         var displayText by remember { mutableStateOf("") }
         var userMsg by remember { mutableStateOf("") }
         // Define greetings as a list of strings
         var greetings by remember { mutableStateOf(listOf<String>()) }
+        var authResult by remember { mutableStateOf("") }
 
         LaunchedEffect(greetings) {
             displayText = greetings.joinToString("\n")
         }
         val chatDemo = ChatDemo()
-        val coroutineScope = rememberCoroutineScope()
+//        val coroutineScope = rememberCoroutineScope()
 
         Column(
             modifier = Modifier.padding(20.dp),
@@ -90,6 +94,33 @@ fun App() {
                     Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
                         Text(
                             text = displayText,
+                            modifier = Modifier.padding(16.dp)
+                        )
+                    }
+                }
+            }
+            // 添加分隔线
+            Divider()
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Button(onClick = {
+                    coroutineScope.launch {
+                        authResult = authDemo.testJWTAuth() ?: ""
+                    }
+                }) {
+                    Text("Test JWT Auth")
+                }
+            }
+            if (authResult.isNotEmpty()) {
+                Card(
+                    modifier = Modifier.padding(8.dp),
+                    elevation = 4.dp
+                ) {
+                    Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                        Text(
+                            text = "[Auth Result]\n$authResult",
                             modifier = Modifier.padding(16.dp)
                         )
                     }

@@ -15,8 +15,9 @@ struct ContentView: View {
 
                 Button(action: {
                     Task {
-                        await viewModel.sendMessage(inputText)
+                        let text = inputText
                         inputText = ""
+                        await viewModel.sendMessage(text)
                     }
                 }) {
                     Text("发送")

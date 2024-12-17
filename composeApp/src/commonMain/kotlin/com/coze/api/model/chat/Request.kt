@@ -53,8 +53,3 @@ data class ToolOutputType(
     val toolCallId: String,
     val output: String
 )
-
-data class RequestOptions(
-    val headers: Map<String, String>? = null,
-    val timeout: Long? = null
-)

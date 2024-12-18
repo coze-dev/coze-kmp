@@ -107,7 +107,7 @@ fun App() {
             ) {
                 Button(onClick = {
                     coroutineScope.launch {
-                        authResult = authDemo.testJWTAuth() ?: ""
+                        authResult = authDemo.getJWTAuth() ?: ""
                     }
                 }) {
                     Text("Test JWT Auth")

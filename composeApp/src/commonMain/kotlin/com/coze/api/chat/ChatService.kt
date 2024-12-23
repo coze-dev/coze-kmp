@@ -1,41 +1,32 @@
 package com.coze.api.chat
 
-import com.coze.api.helper.APIClient
+import com.coze.api.helper.APIBase
 import com.coze.api.helper.RequestOptions
 import com.coze.api.model.chat.*
 import com.coze.api.model.ApiResponse
 import com.coze.api.model.ChatEventType
-import io.ktor.client.statement.HttpResponse
-import io.ktor.http.HttpMethod
 import kotlinx.coroutines.delay
 import kotlinx.datetime.Clock
 import kotlin.random.Random
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
-import kotlinx.serialization.serializer
 
 fun generateUUID(): String = 
     (Random.nextDouble() * Clock.System.now().toEpochMilliseconds()).toString()
 
-class ChatService(token: String) : APIClient(token) {
+class ChatService : APIBase() {
 
     suspend fun createChat(
         params: CreateChatReq, 
         options: RequestOptions? = null
-    ): CreateChatData {
+    ): ApiResponse<CreateChatData> {
         params.userId = params.userId.takeUnless { it.isNullOrEmpty() } ?: generateUUID()
         val apiUrl = "/v3/chat${params.conversationId?.let { "?conversation_id=$it" } ?: ""}"
         val payload = params.copy(
             additionalMessages = handleAdditionalMessages(params.additionalMessages),
             stream = false
         )
-        val response = post(
-            path = apiUrl,
-            payload = payload,
-            serializer = serializer<ApiResponse<CreateChatData>>(),
-            options = options
-        )
-        return response.data
+        return post(apiUrl, payload, options)
     }
 
     suspend fun createAndPollChat(
@@ -48,14 +39,13 @@ class ChatService(token: String) : APIClient(token) {
             additionalMessages = handleAdditionalMessages(params.additionalMessages),
             stream = false
         )
-        val response = post(
+        val response = post<CreateChatData>(
             path = apiUrl,
             payload = payload,
-            serializer = serializer<ApiResponse<CreateChatData>>(),
             options = options
         )
-
-        val chatId = response.data.id
+        println("response: $response")
+        val chatId = response.data?.id ?: throw Exception("创建聊天失败：返回数据为空")
         val conversationId = response.data.conversationId
         var chat: CreateChatData?
 
@@ -63,9 +53,11 @@ class ChatService(token: String) : APIClient(token) {
         val timeout = 60000 
         while (true) {
             delay(500)
-            chat = retrieveChat(conversationId, chatId)
-            if (chat.status in listOf(ChatStatus.COMPLETED, ChatStatus.FAILED, ChatStatus.REQUIRES_ACTION)) {
-                break
+            chat = retrieveChat(conversationId, chatId).data
+            if (chat != null) {
+                if (chat.status in listOf(ChatStatus.COMPLETED, ChatStatus.FAILED, ChatStatus.REQUIRES_ACTION)) {
+                    break
+                }
             }
             if (Clock.System.now().toEpochMilliseconds() - startTime.toEpochMilliseconds() > timeout) {
                 throw Exception("轮询超时")
@@ -73,7 +65,7 @@ class ChatService(token: String) : APIClient(token) {
         }
 
         val nonNullChat = requireNotNull(chat) { "The Response Chat Message data should not be null" }
-        val messageList = listMessages(conversationId, chatId)
+        val messageList = listMessages(conversationId, chatId).data
         return CreateChatPollData(nonNullChat, messageList)
     }
 
@@ -81,45 +73,38 @@ class ChatService(token: String) : APIClient(token) {
         conversationId: String, 
         chatId: String, 
         options: RequestOptions? = null
-    ): CreateChatData {
+    ): ApiResponse<CreateChatData> {
         println("retrieving...")
         val apiUrl = "/v3/chat/retrieve?conversation_id=$conversationId&chat_id=$chatId"
-        val response = post(
+        return post<CreateChatData>(
             path = apiUrl,
             payload = null,
-            serializer = serializer<ApiResponse<CreateChatData>>(),
             options = options
         )
-        return response.data
     }
 
     suspend fun cancelChat(
         conversationId: String, 
         chatId: String, 
         options: RequestOptions? = null
-    ): CreateChatData {
-        val apiUrl = "/v3/chat/cancel"
-        val payload = mapOf("conversation_id" to conversationId, "chat_id" to chatId)
-        val response = post(
-            path = apiUrl,
-            payload = payload,
-            serializer = serializer<ApiResponse<CreateChatData>>(),
-            options = options
-        )
-        return response.data
-    }
+    ): ApiResponse<CreateChatData> =
+        post<CreateChatData>("/v3/chat/cancel", mapOf(
+            "conversation_id" to conversationId,
+            "chat_id" to chatId
+        ), options)
 
     private suspend fun listMessages(
         conversationId: String, 
-        chatId: String
-    ): List<ChatV3Message> {
-        val apiUrl = "/v3/chat/message/list?conversation_id=$conversationId&chat_id=$chatId"
-        val response = get(
-            path = apiUrl,
-            serializer = serializer<ApiResponse<List<ChatV3Message>>>()
-        )
-        return response.data
-    }
+        chatId: String,
+        options: RequestOptions? = null
+    ): ApiResponse<List<ChatV3Message>> =
+        get<List<ChatV3Message>>("/v3/chat/message/list", 
+        RequestOptions(
+            params = mapOf(
+                "conversation_id" to conversationId,
+                "chat_id" to chatId
+            )
+        ))
 
     private fun handleAdditionalMessages(additionalMessages: List<Message>?): List<Message>? {
         return additionalMessages?.map { it.copy(content = it.content ?: "") }
@@ -136,7 +121,7 @@ class ChatService(token: String) : APIClient(token) {
             stream = true
         )
 
-        val eventFlow = sse(apiUrl, payload, true, options ?: RequestOptions())
+        val eventFlow = sse(apiUrl, payload, options ?: RequestOptions())
         eventFlow.collect { event ->
             val chatData = sseEvent2ChatData(event)
             emit(chatData)

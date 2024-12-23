@@ -1,5 +1,6 @@
 package com.coze.api.helper
 
+import com.coze.api.model.ApiResponse
 import com.coze.api.model.ChatEventType
 import io.ktor.client.*
 import io.ktor.client.plugins.contentnegotiation.*
@@ -10,138 +11,127 @@ import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.json.Json
 import io.ktor.client.plugins.sse.*
-import io.ktor.http.ContentType
 import io.ktor.sse.ServerSentEvent
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
-import kotlinx.serialization.KSerializer
+import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.serializer
 
-const val COZE_COM_API_URL = "https://api.coze.com"
-const val COZE_COM_BASE_URL = "https://www.coze.com"
+const val API_URL = "https://api.coze.com"
 
 data class RequestOptions(
-    val headers: Map<String, String>? = null,
-    val timeout: Long? = null
+    val headers: Map<String, String> = emptyMap(),
+    val params: Map<String, String> = emptyMap()
 )
 
-class APIError(
-    val statusCode: Int,
-    override val message: String,
-    val rawError: RawError? = null,
-    cause: Throwable? = null
-) : Exception(message, cause) {
-    data class RawError(
-        val error: String,
-        val error_description: String?
-    )
-
-    companion object {
-        fun generate(
-            status: Int,
-            rawError: RawError? = null,
-            message: String? = null,
-            cause: Throwable? = null
-        ): APIError {
-            return APIError(
-                statusCode = status,
-                message = message ?: rawError?.error_description ?: "Unknown error",
-                rawError = rawError,
-                cause = cause
-            )
-        }
+open class APIClient(private val baseURL: String? = API_URL, val token: String? = null) {
+    val jsonUtil = Json {
+        prettyPrint = true
+        isLenient = true
+        ignoreUnknownKeys = true
+        encodeDefaults = true
+        explicitNulls = false
+        coerceInputValues = true
     }
-}
 
-open class APIClient(
-    private val token: String,
-    private val baseURL: String? = null
-) {
-    private val httpClient = HttpClient {
+    private val client = HttpClient {
         install(ContentNegotiation) {
-            json(Json {
-                prettyPrint = true
-                isLenient = true
-                ignoreUnknownKeys = true
-            })
+            json(jsonUtil)
         }
         install(Logging) {
             logger = Logger.DEFAULT
-            level = LogLevel.HEADERS
+            level = LogLevel.INFO
             sanitizeHeader { header -> header == HttpHeaders.Authorization }
         }
-        install(SSE) {
-            showCommentEvents()
-            showRetryEvents()
-        }
+        install(SSE)
     }
-    private val baseUrl = baseURL ?: COZE_COM_API_URL
 
-    suspend fun <T> post(
+    suspend fun request(
+        method: HttpMethod,
         path: String,
-        payload: Any?,
-        serializer: KSerializer<T>,
-        useAuth: Boolean = true,
+        token: String? = null,
+        body: Any? = null,
         options: RequestOptions? = null
-    ): T {
-        val response = httpClient.post("$baseUrl$path") {
-            contentType(ContentType.Application.Json)
-            if (useAuth) {
-                header("Authorization", "Bearer $token")
-            }
-            options?.headers?.forEach { (key, value) ->
-                header(key, value)
-            }
-            if (payload != null) {
-                setBody(payload)
-            }
-        }
+    ): HttpResponse {
+        val queryString = options?.params?.let { params ->
+            if (params.isNotEmpty()) {
+                params.entries.joinToString("&") { "${it.key}=${it.value}" }
+            } else ""
+        } ?: ""
+        
+        val fullPath = if (path.contains("?")) {
+            "$path&$queryString"
+        } else if (queryString.isNotEmpty()) {
+            "$path?$queryString"
+        } else path
 
-        if (!response.status.isSuccess()) {
-            throw APIError(
-                statusCode = response.status.value,
-                message = response.bodyAsText()
-            )
-        }
+        val url = (baseURL ?: API_URL) + fullPath
+        println("[HTTP] Request URL: $url")
 
-        return Json.decodeFromString(serializer, response.bodyAsText())
+        return try {
+            val response = client.request(url) {
+                this.method = method
+                headers {
+                    val actualToken = token ?: this@APIClient.token
+                    actualToken?.let { append(HttpHeaders.Authorization, "Bearer ${it.take(10)}...") }
+                    options?.headers?.forEach { (key, value) -> append(key, value) }
+                }
+                if (method != HttpMethod.Get && body != null) {
+                    contentType(ContentType.Application.Json)
+                    when (body) {
+                        is String -> setBody(body)
+                        is JsonObject -> setBody(jsonUtil.encodeToString(JsonObject.serializer(), body))
+                        else -> setBody(body)
+                    }
+                }
+            }
+            
+            if (response.status != HttpStatusCode.OK) {
+                println("[HTTP] Error response: ${response.bodyAsText()}")
+            }
+            
+            response
+        } catch (e: Exception) {
+            println("[HTTP] Request failed: ${e.message}")
+            throw e
+        }
     }
 
-    suspend fun <T> get(
+    suspend inline fun <reified T> get(
         path: String,
-        serializer: KSerializer<T>,
-        useAuth: Boolean = true,
         options: RequestOptions? = null
-    ): T {
-        val response = httpClient.get("$baseUrl$path") {
-            if (useAuth) {
-                header("Authorization", "Bearer $token")
-            }
-            options?.headers?.forEach { (key, value) ->
-                header(key, value)
-            }
-        }
-
-        if (!response.status.isSuccess()) {
-            throw APIError(
-                statusCode = response.status.value,
-                message = response.bodyAsText()
+    ): ApiResponse<T> {
+        val opts = if (options?.params != null) {
+            RequestOptions(
+                params = options.params + options.params,
+                headers = options.headers
             )
-        }
+        } else options
 
-        return Json.decodeFromString(serializer, response.bodyAsText())
+        val response = request(HttpMethod.Get, path, null, options = opts)
+        val responseText = response.bodyAsText()
+        return jsonUtil.decodeFromString(responseText)
+    }
+    
+    suspend inline fun <reified T> post(
+        path: String,
+        payload: Any? = null,
+        options: RequestOptions? = null
+    ): ApiResponse<T> {
+        val response = request(HttpMethod.Post, path, null, payload, options)
+        val responseText = response.bodyAsText()
+        return jsonUtil.decodeFromString(serializer<ApiResponse<T>>(), responseText)
     }
 
-    suspend fun sse(
+    fun sse(
         path: String,
         body: Any? = null,
-        useAuth: Boolean = true,
         options: RequestOptions? = null
     ): Flow<ServerSentEvent> = flow {
-        httpClient.sse("$baseUrl$path", {
+        client.sse(baseURL + path, {
             method = HttpMethod.Post
-            if (useAuth) {
-                header("Authorization", "Bearer $token")
+            token?.let { 
+                header("Authorization", "Bearer $it")
             }
             header("Accept", "text/event-stream")
             header("Cache-Control", "no-cache")
@@ -166,3 +156,43 @@ open class APIClient(
         }
     }
 }
+
+open class APIBase(
+    protected val baseURL: String = API_URL,
+) {
+    protected lateinit var httpClient: APIClient
+
+    protected suspend fun init() {
+        if (!::httpClient.isInitialized) {
+            val token = TokenManager.getTokenAsync()
+            println("[HTTP] Initialized with new token")
+            httpClient = APIClient(baseURL, token)
+        }
+    }
+
+    protected suspend inline fun <reified T> get(
+        path: String,
+        options: RequestOptions? = null
+    ): ApiResponse<T> {
+        init()
+        return httpClient.get(path, options)
+    }
+
+    protected suspend inline fun <reified T> post(
+        path: String,
+        payload: Any? = null,
+        options: RequestOptions? = null
+    ): ApiResponse<T> {
+        init()
+        return httpClient.post(path, payload, options)
+    }
+
+    protected suspend fun sse(
+        path: String,
+        body: Any? = null,
+        options: RequestOptions? = null
+    ): Flow<ServerSentEvent> {
+        init()
+        return httpClient.sse(path, body, options)
+    }
+} 

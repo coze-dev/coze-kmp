@@ -16,13 +16,14 @@ class AndroidJWTProvider : JWTProvider {
         algorithm: String,
         keyid: String
     ): String {
-        println("keyid: $keyid")
+        // println("keyid: $keyid")
         val cleanKey = privateKey
             .replace("-----BEGIN PRIVATE KEY-----", "")
             .replace("-----END PRIVATE KEY-----", "")
             .replace("-----BEGIN RSA PRIVATE KEY-----", "")
             .replace("-----END RSA PRIVATE KEY-----", "")
             .replace("\n", "")
+            .trim()
         val keyBytes = Base64.getDecoder().decode(cleanKey)
         val keySpec = PKCS8EncodedKeySpec(keyBytes)
         val keyFactory = KeyFactory.getInstance("RSA")

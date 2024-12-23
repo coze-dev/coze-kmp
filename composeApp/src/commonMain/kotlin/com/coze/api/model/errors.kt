@@ -1,22 +1,23 @@
 package com.coze.api.model
 
 import io.ktor.http.Headers
+import kotlinx.serialization.Serializable
 
 open class CozeError(message: String) : Exception(message)
 
 open class APIError(
     val status: Int?,
-    val headers: Headers?,
-    error: ErrorRes?,
-    message: String?
+    val error: ErrorRes?,
+    message: String?,
+    headers: Headers? = null,
 ) : CozeError(makeMessage(status, error, message, headers)) {
 
-    val code = error?.code
-    val msg = error?.msg
-    val detail = error?.error?.detail
-    val helpDoc = error?.error?.helpDoc
-    val logid = headers?.get("x-tt-logid")
-    val rawError = error
+    val code: Int? = error?.code
+    val msg: String? = error?.msg
+    val detail: String? = error?.error?.detail
+    val helpDoc: String? = error?.error?.helpDoc
+    val logid: String? = headers?.get("x-tt-logid")
+    val rawError: ErrorRes? = error
 
     companion object {
         private fun makeMessage(
@@ -28,15 +29,14 @@ open class APIError(
             if (errorBody == null && message != null) return message
             if (errorBody != null) {
                 val list = mutableListOf<String>()
-                val (code, msg, error) = errorBody
-                code?.let { list.add("code: $it") }
-                msg?.let { list.add("msg: $it") }
-                if (error?.detail != null && msg != error.detail) {
-                    list.add("detail: ${error.detail}")
+                errorBody.code?.let { list.add("code: $it") }
+                errorBody.msg?.let { list.add("msg: $it") }
+                if (errorBody.error?.detail != null && errorBody.msg != errorBody.error.detail) {
+                    list.add("detail: ${errorBody.error.detail}")
                 }
-                val logId = error?.logid ?: headers?.get("x-tt-logid")
+                val logId = errorBody.error?.logid ?: headers?.get("x-tt-logid")
                 logId?.let { list.add("logid: $it") }
-                error?.helpDoc?.let { list.add("help doc: $it") }
+                errorBody.error?.helpDoc?.let { list.add("help doc: $it") }
                 return list.joinToString(", ")
             }
             return status?.let { "http status code: $it (no body)" } ?: "(no status code or body)"
@@ -48,75 +48,113 @@ open class APIError(
             message: String?,
             headers: Headers?
         ): APIError {
-            if (status == null) return APIConnectionError(errorResponse?.msg)
+            if (status == null) {
+                return APIConnectionError(cause = castToError(errorResponse))
+            }
 
-            val error = errorResponse
             return when {
-                status == 400 || error?.code == 4000 -> BadRequestError(status, error, message, headers)
-                status == 401 || error?.code == 4100 -> AuthenticationError(status, error, message, headers)
-                status == 403 || error?.code == 4101 -> PermissionDeniedError(status, error, message, headers)
-                status == 404 || error?.code == 4200 -> NotFoundError(status, error, message, headers)
-                status == 429 || error?.code == 4013 -> RateLimitError(status, error, message, headers)
-                status == 408 -> TimeoutError(status, error, message, headers)
-                status == 502 -> GatewayError(status, error, message, headers)
-                status >= 500 -> InternalServerError(status, error, message, headers)
-                else -> APIError(status, headers, error, message)
+                status == 400 || errorResponse?.code == 4000 -> BadRequestError(status, errorResponse, message, headers)
+                status == 401 || errorResponse?.code == 4100 -> AuthenticationError(status, errorResponse, message, headers)
+                status == 403 || errorResponse?.code == 4101 -> PermissionDeniedError(status, errorResponse, message, headers)
+                status == 404 || errorResponse?.code == 4200 -> NotFoundError(status, errorResponse, message, headers)
+                status == 429 || errorResponse?.code == 4013 -> RateLimitError(status, errorResponse, message, headers)
+                status == 408 -> TimeoutError(status, errorResponse, message, headers)
+                status == 502 -> GatewayError(status, errorResponse, message, headers)
+                status >= 500 -> InternalServerError(status, errorResponse, message, headers)
+                else -> APIError(status, errorResponse, message, headers)
             }
         }
     }
 }
 
+@Serializable
 data class ErrorRes(
     val code: Int?,
     val msg: String?,
     val error: ErrorDetail?
 )
 
+@Serializable
 data class ErrorDetail(
     val logid: String?,
     val detail: String?,
     val helpDoc: String?
 )
 
-fun castToError(err: Any?): Exception {
-    return if (err is Exception) err else Exception(err.toString())
-}
-
 class APIConnectionError(
     message: String? = "Connection error.",
     cause: Throwable? = null
-) : APIError(
-    status = null,
-    headers = null,
-    error = null,
-    message = message
-) {
+) : APIError(null, null, message, null) {
     init {
-        // If you need to handle the cause later, add logic here
-        // e.g., this.cause = cause
+        cause?.message
     }
 }
 
-class BadRequestError(status: Int?, error: ErrorRes?, message: String?, headers: Headers?) :
-    APIError(status, headers, error, message)
+class APIUserAbortError(
+    message: String? = "Request was aborted."
+) : APIError(null, null, message, null)
 
-class AuthenticationError(status: Int?, error: ErrorRes?, message: String?, headers: Headers?) :
-    APIError(status, headers, error, message)
+class BadRequestError(
+    status: Int?,
+    error: ErrorRes?,
+    message: String?,
+    headers: Headers?
+) : APIError(status, error, message, headers)
 
-class PermissionDeniedError(status: Int?, error: ErrorRes?, message: String?, headers: Headers?) :
-    APIError(status, headers, error, message)
+class AuthenticationError(
+    status: Int?,
+    error: ErrorRes?,
+    message: String?,
+    headers: Headers?
+) : APIError(status, error, message, headers)
 
-class NotFoundError(status: Int?, error: ErrorRes?, message: String?, headers: Headers?) :
-    APIError(status, headers, error, message)
+class PermissionDeniedError(
+    status: Int?,
+    error: ErrorRes?,
+    message: String?,
+    headers: Headers?
+) : APIError(status, error, message, headers)
 
-class RateLimitError(status: Int?, error: ErrorRes?, message: String?, headers: Headers?) :
-    APIError(status, headers, error, message)
+class NotFoundError(
+    status: Int?,
+    error: ErrorRes?,
+    message: String?,
+    headers: Headers?
+) : APIError(status, error, message, headers)
 
-class TimeoutError(status: Int?, error: ErrorRes?, message: String?, headers: Headers?) :
-    APIError(status, headers, error, message)
+class RateLimitError(
+    status: Int?,
+    error: ErrorRes?,
+    message: String?,
+    headers: Headers?
+) : APIError(status, error, message, headers)
 
-class InternalServerError(status: Int?, error: ErrorRes?, message: String?, headers: Headers?) :
-    APIError(status, headers, error, message)
+class TimeoutError(
+    status: Int?,
+    error: ErrorRes?,
+    message: String?,
+    headers: Headers?
+) : APIError(status, error, message, headers)
 
-class GatewayError(status: Int?, error: ErrorRes?, message: String?, headers: Headers?) :
-    APIError(status, headers, error, message)
+class InternalServerError(
+    status: Int?,
+    error: ErrorRes?,
+    message: String?,
+    headers: Headers?
+) : APIError(status, error, message, headers)
+
+class GatewayError(
+    status: Int?,
+    error: ErrorRes?,
+    message: String?,
+    headers: Headers?
+) : APIError(status, error, message, headers)
+
+fun castToError(err: Any?): Throwable {
+    return if (err is Throwable) err else Exception(err.toString())
+}
+
+class JSONParseError(
+    message: String,
+    cause: Throwable? = null
+) : Exception(message, cause)

@@ -7,20 +7,8 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 
 class ChatDemo {
-    companion object {
-        private var token: String? = null
-            get() {
-                if (field == null) {
-                    field = AuthDemo.getJWTAuth()
-                }
-                return field
-            }
-    }
-
-    // 使用伴生对象中的 token 初始化 chatService
-    private val chatService = ChatService(token!!)
+    private val chatService = ChatService()
     
-
     private val defaultBotId = "7373880376026103809"
     private val defaultUserId = "007"
 
@@ -36,8 +24,10 @@ class ChatDemo {
                 userId = defaultUserId,
                 additionalMessages = listOf(Message(role = "user", content = greeting))
             )
-        )
-        emit("(Response arrived. chat_id=${data.id}, conversation_id=${data.conversationId})")
+        ).data
+        if (data != null) {
+            emit("(Response arrived. chat_id=${data.id}, conversation_id=${data.conversationId})")
+        }
     }
 
     fun streamTest(msg: String=""): Flow<String> = flow {

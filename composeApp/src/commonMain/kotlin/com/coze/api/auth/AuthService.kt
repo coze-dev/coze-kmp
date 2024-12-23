@@ -1,26 +1,28 @@
 package com.coze.api.auth
 
 import com.coze.api.helper.APIClient
-import com.coze.api.helper.APIError
 import com.coze.api.helper.RequestOptions
 import com.coze.api.helper.getJWTProvider
 import com.coze.api.helper.isBrowser
+import com.coze.api.model.APIError
+import com.coze.api.model.ApiResponse
 import kotlinx.datetime.Clock
 import com.coze.api.model.auth.*
-import kotlinx.serialization.serializer
+import io.ktor.client.statement.bodyAsText
+import io.ktor.http.HttpMethod
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
+import kotlinx.serialization.serializer
 
 // 主要功能函数
-object Auth {
+object AuthService {
     private suspend fun _getJWTToken(
         config: Map<String, Any>,
         options: RequestOptions? = null
     ): JWTToken {
         val api = APIClient(token = config["token"] as String, baseURL = config["baseURL"] as? String)
-        // println("config: $config")
 
         val payload = buildJsonObject {
             put("grant_type", "urn:ietf:params:oauth:grant-type:jwt-bearer")
@@ -29,17 +31,12 @@ object Auth {
                 put("scope", config["scope"].toString())
             }
         }
-        // println("payload: $payload")
 
         val jsonPayload = Json.encodeToString(JsonObject.serializer(), payload)
 
-        return api.post(
-            path = "/api/permission/oauth2/token",
-            payload = jsonPayload,
-            serializer = serializer<JWTToken>(),
-            useAuth = true,
-            options = options
-        )
+        println("_getJWTToken post payload: $jsonPayload, token: ${config["token"]}")
+        val response = api.request(HttpMethod.Post, "/api/permission/oauth2/token", config["token"] as String, payload, options)
+        return Json.decodeFromString(serializer<JWTToken>(), response.bodyAsText())
     }
 
     suspend fun getJWTToken(
@@ -61,6 +58,7 @@ object Auth {
         if (keyFormat == null) {
             throw APIError(
                 400,
+                null,
                 "Invalid private key format. Expected PEM format (RSA or PKCS8)"
             )
         }
@@ -77,7 +75,6 @@ object Auth {
                 put("session_name", config.sessionName)
             }
         }
-        println("jwtPayload: $jwtPayload")
 
         // 将JsonObject转换为Map
         val jwtPayloadMap = jwtPayload.toMap()

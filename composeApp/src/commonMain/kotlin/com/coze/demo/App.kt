@@ -11,6 +11,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.coze.api.model.ChatV3Message
+import com.coze.api.model.bot.BotInfo
 import com.coze.api.model.conversation.Conversation
 import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
@@ -25,6 +26,7 @@ fun App() {
     val chatDemo = ChatDemo()
     val conversationDemo = ConversationDemo()
     val messageDemo = remember { MessageDemo() }
+    val botDemo = remember { BotDemo() }
     val coroutineScope = rememberCoroutineScope()
     val scrollState = rememberScrollState()
 
@@ -38,6 +40,17 @@ fun App() {
         var conversationResult by remember { mutableStateOf("") }
         var conversationId by remember { mutableStateOf("") }
         
+        // Bot 相关状态
+        var botName by remember { mutableStateOf("") }
+        var botDescription by remember { mutableStateOf("") }
+        var botId by remember { mutableStateOf("") }
+        var botInfo: BotInfo? by remember { mutableStateOf<BotInfo?>(null) }
+        var botResult by remember { mutableStateOf("") }
+        var isCreateBotLoading by remember { mutableStateOf(false) }
+        var isListBotsLoading by remember { mutableStateOf(false) }
+        var isGetBotLoading by remember { mutableStateOf(false) }
+        var isPublishBotLoading by remember { mutableStateOf(false) }
+
         // 新增状态管理
         var selectedConversationId by remember { mutableStateOf<String?>(null) }
         var selectedMessageId by remember { mutableStateOf<String?>(null) }
@@ -280,7 +293,7 @@ fun App() {
                                          !isGetConversationLoading && !isClearConversationLoading
                             )
 
-                            // ��话操作按钮
+                            // 对话操作按钮
                             FlowRow(
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                                 verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -662,6 +675,222 @@ fun App() {
                                             }
                                         }
                                     }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Bot 管理部分
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    elevation = 4.dp
+                ) {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        Text("Bot 管理", style = MaterialTheme.typography.h6)
+                        
+                        // Bot 创建区域
+                        Column(
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            TextField(
+                                value = botName,
+                                onValueChange = { botName = it },
+                                label = { Text("Bot 名称") },
+                                modifier = Modifier.fillMaxWidth(),
+                                enabled = !isCreateBotLoading
+                            )
+                            TextField(
+                                value = botDescription,
+                                onValueChange = { botDescription = it },
+                                label = { Text("Bot 描述") },
+                                modifier = Modifier.fillMaxWidth(),
+                                enabled = !isCreateBotLoading
+                            )
+                            Button(
+                                onClick = {
+                                    coroutineScope.launch {
+                                        isCreateBotLoading = true
+                                        try {
+                                            val newBotId = botDemo.createBot(botName, botDescription)
+                                            botId = newBotId
+                                            botResult = "Bot 创建成功: $newBotId"
+                                            errorMessage = null
+                                        } catch (e: Exception) {
+                                            println("[Error] Create bot failed: ${e.message}")
+                                            errorMessage = e.message
+                                        } finally {
+                                            isCreateBotLoading = false
+                                        }
+                                    }
+                                },
+                                enabled = !isCreateBotLoading && botName.isNotEmpty(),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                if (isCreateBotLoading) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(20.dp),
+                                        color = MaterialTheme.colors.onPrimary
+                                    )
+                                } else {
+                                    Text("创建 Bot")
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        // Bot 操作区域
+                        Column(
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            TextField(
+                                value = botId,
+                                onValueChange = { botId = it },
+                                label = { Text("Bot ID") },
+                                modifier = Modifier.fillMaxWidth(),
+                                enabled = !isListBotsLoading && !isGetBotLoading && !isPublishBotLoading
+                            )
+                            FlowRow(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Button(
+                                    onClick = {
+                                        coroutineScope.launch {
+                                            isListBotsLoading = true
+                                            try {
+                                                val response = botDemo.listBots()
+                                                botResult = buildString {
+                                                    appendLine("[Bot 列表]")
+                                                    appendLine("总数: ${response.total}")
+                                                    response.spaceBots.forEach { bot ->
+                                                        appendLine("---")
+                                                        appendLine("ID: ${bot.botId}")
+                                                        appendLine("名称: ${bot.botName}")
+                                                        appendLine("描述: ${bot.description}")
+                                                        appendLine("发布时间: ${bot.publishTime}")
+                                                    }
+                                                }
+                                                if (response.spaceBots.isNotEmpty() == true) {
+                                                    botId = response.spaceBots.first().botId
+                                                }
+                                                errorMessage = null
+                                            } catch (e: Exception) {
+                                                println("[Error] List bots failed: ${e.message}")
+                                                errorMessage = e.message
+                                            } finally {
+                                                isListBotsLoading = false
+                                            }
+                                        }
+                                    },
+                                    enabled = !isListBotsLoading
+                                ) {
+                                    if (isListBotsLoading) {
+                                        CircularProgressIndicator(
+                                            modifier = Modifier.size(20.dp),
+                                            color = MaterialTheme.colors.onPrimary
+                                        )
+                                    } else {
+                                        Text("列出 Bots")
+                                    }
+                                }
+
+                                Button(
+                                    onClick = {
+                                        coroutineScope.launch {
+                                            isGetBotLoading = true
+                                            try {
+                                                botInfo = botDemo.getBot(botId)
+                                                botResult = if (botInfo == null) {
+                                                    "Bot 不存在"
+                                                } else {
+                                                    buildString {
+                                                        appendLine("[Bot 详情]")
+                                                        appendLine("ID: ${botInfo?.botId}")
+                                                        appendLine("名称: ${botInfo?.name}")
+                                                        appendLine("描述: ${botInfo?.description ?: "N/A"}")
+                                                        appendLine("创建时间: ${botInfo?.createTime ?: "N/A"}")
+                                                        appendLine("更新时间: ${botInfo?.updateTime ?: "N/A"}")
+                                                    }
+                                                }
+                                                errorMessage = null
+                                            } catch (e: Exception) {
+                                                println("[Error] Get bot failed: ${e.message}")
+                                                errorMessage = e.message
+                                            } finally {
+                                                isGetBotLoading = false
+                                            }
+                                        }
+                                    },
+                                    enabled = !isGetBotLoading && botId.isNotEmpty()
+                                ) {
+                                    if (isGetBotLoading) {
+                                        CircularProgressIndicator(
+                                            modifier = Modifier.size(20.dp),
+                                            color = MaterialTheme.colors.onPrimary
+                                        )
+                                    } else {
+                                        Text("获取详情")
+                                    }
+                                }
+
+                                Button(
+                                    onClick = {
+                                        coroutineScope.launch {
+                                            isPublishBotLoading = true
+                                            try {
+                                                val publishResult = botDemo.publishBot(botId)
+                                                if (publishResult == null) {
+                                                    botResult = "发布 Bot 失败！"
+                                                } else {
+                                                    botResult = buildString {
+                                                        appendLine("[Bot 发布结果]")
+                                                        appendLine("Bot ID: ${publishResult.botId}")
+                                                        appendLine("版本: ${publishResult.version}")
+                                                    }
+                                                    errorMessage = null
+                                                }
+                                            } catch (e: Exception) {
+                                                println("[Error] Publish bot failed: ${e.message}")
+                                                errorMessage = e.message
+                                            } finally {
+                                                isPublishBotLoading = false
+                                            }
+                                        }
+                                    },
+                                    enabled = !isPublishBotLoading && botId.isNotEmpty()
+                                ) {
+                                    if (isPublishBotLoading) {
+                                        CircularProgressIndicator(
+                                            modifier = Modifier.size(20.dp),
+                                            color = MaterialTheme.colors.onPrimary
+                                        )
+                                    } else {
+                                        Text("发布 Bot")
+                                    }
+                                }
+                            }
+                        }
+
+                        // Bot 操作结果显示
+                        if (botResult.isNotEmpty()) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text("操作结果", style = MaterialTheme.typography.subtitle1)
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                elevation = 2.dp
+                            ) {
+                                Column(
+                                    modifier = Modifier
+                                        .padding(8.dp)
+                                        .heightIn(max = 500.dp)
+                                        .verticalScroll(rememberScrollState())
+                                ) {
+                                    Text(text = botResult)
                                 }
                             }
                         }

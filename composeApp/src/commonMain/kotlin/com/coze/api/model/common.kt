@@ -100,10 +100,10 @@ data class Usage(
  */
 @Serializable
 data class EnterMessage(
-    val role: String,
+    val role: RoleType,
     val content: String? = null,
     @SerialName("content_type")
-    var contentType: String? = "text",
+    var contentType: ContentType? = ContentType.TEXT,
     @SerialName("meta_data")
     val metaData: Map<String, String>? = null,
     @SerialName("type")

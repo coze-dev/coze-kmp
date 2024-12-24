@@ -1,16 +1,24 @@
 package com.coze.demo
 
 import com.coze.api.chat.ChatService
+import com.coze.api.chat.MessageService
 import com.coze.api.model.ChatEventType
 import com.coze.api.model.ChatStatus
+import com.coze.api.model.ChatV3Message
 import com.coze.api.model.EnterMessage
 import com.coze.api.model.MessageType
+import com.coze.api.model.RoleType
 import com.coze.api.model.chat.*
+import com.coze.api.model.conversation.ListMessageReq
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.IO
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.withContext
 
 class ChatDemo {
     private val chatService = ChatService()
+    private val messageService = MessageService()
     
     private val defaultBotId = "7373880376026103809"
     private val defaultUserId = "007"
@@ -25,7 +33,7 @@ class ChatDemo {
             ChatRequest(
                 botId = defaultBotId,
                 userId = defaultUserId,
-                additionalMessages = listOf(EnterMessage(role = "user", content = greeting))
+                additionalMessages = listOf(EnterMessage(role = RoleType.USER, content = greeting))
             )
         ).data
         if (data != null) {
@@ -40,7 +48,7 @@ class ChatDemo {
                 botId = defaultBotId,
                 userId = defaultUserId,
                 additionalMessages = listOf(
-                    EnterMessage(role = "user", content = messageContent)
+                    EnterMessage(role = RoleType.USER, content = messageContent)
                 )
             )
         )
@@ -62,7 +70,7 @@ class ChatDemo {
             ChatRequest(
                 botId = defaultBotId,
                 userId = defaultUserId,
-                additionalMessages = listOf(EnterMessage(role = "user", content = messageContent))
+                additionalMessages = listOf(EnterMessage(role = RoleType.USER, content = messageContent))
             )
         )
         emit("(Response arrived.)")
@@ -77,4 +85,15 @@ class ChatDemo {
             emit("No messages")
         }
     }
+
+    // 获取消息详情
+// 列出聊天消息
+    suspend fun listChatMessages(
+        conversationId: String,
+        chatId: String,
+    ): List<ChatV3Message> = withContext(Dispatchers.IO) {
+        println("Listing messages for chat $chatId")
+        messageService.list(conversationId, chatId).data?: emptyList()
+    }
+
 }

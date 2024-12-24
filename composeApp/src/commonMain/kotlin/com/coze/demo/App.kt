@@ -46,6 +46,17 @@ fun App() {
         var conversations by remember { mutableStateOf<List<Conversation>>(emptyList()) }
         var errorMessage by remember { mutableStateOf<String?>(null) }
 
+        // Loading states
+        var isAuthLoading by remember { mutableStateOf(false) }
+        var isChatLoading by remember { mutableStateOf(false) }
+        var isListConversationsLoading by remember { mutableStateOf(false) }
+        var isCreateConversationLoading by remember { mutableStateOf(false) }
+        var isGetConversationLoading by remember { mutableStateOf(false) }
+        var isClearConversationLoading by remember { mutableStateOf(false) }
+        var isCreateMessageLoading by remember { mutableStateOf(false) }
+        var isDeleteMessageLoading by remember { mutableStateOf(false) }
+        var isGetMessageLoading by remember { mutableStateOf(false) }
+
         LaunchedEffect(greetings) {
             displayText = greetings.joinToString("\n")
         }
@@ -98,12 +109,27 @@ fun App() {
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Text("Authentication", style = MaterialTheme.typography.h6)
-                        Button(onClick = {
-                            coroutineScope.launch {
-                                authResult = authDemo.getJWTAuth() ?: ""
+                        Button(
+                            onClick = {
+                                coroutineScope.launch {
+                                    isAuthLoading = true
+                                    try {
+                                        authResult = authDemo.getJWTAuth() ?: ""
+                                    } finally {
+                                        isAuthLoading = false
+                                    }
+                                }
+                            },
+                            enabled = !isAuthLoading
+                        ) {
+                            if (isAuthLoading) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(20.dp),
+                                    color = MaterialTheme.colors.onPrimary
+                                )
+                            } else {
+                                Text("Test JWT Auth")
                             }
-                        }) {
-                            Text("Test JWT Auth")
                         }
                         if (authResult.isNotEmpty()) {
                             Text(text = "[Auth Result]\n$authResult")
@@ -125,71 +151,106 @@ fun App() {
                             value = inputText,
                             onValueChange = { inputText = it },
                             label = { Text("Chat With Coze Bot") },
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier.fillMaxWidth(),
+                            enabled = !isChatLoading
                         )
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             // Stream chat button
-                            Button(onClick = {
-                                coroutineScope.launch {
-                                    userMsg = inputText
-                                    inputText = ""
-                                    var text = "[Coze Response (Stream)]\n"
-                                    chatDemo.streamTest(userMsg).collect { phrase ->
-                                        text += phrase
-                                        greetings = greetings.dropLast(1) + text
-                                        displayText = greetings.joinToString("\n")
+                            Button(
+                                onClick = {
+                                    coroutineScope.launch {
+                                        isChatLoading = true
+                                        try {
+                                            userMsg = inputText
+                                            inputText = ""
+                                            greetings = listOf("[Coze Response (Stream)]\n")
+                                            chatDemo.streamTest(userMsg).collect { phrase ->
+                                                val lastText = greetings.last()
+                                                greetings = greetings.dropLast(1) + (lastText + phrase)
+                                            }
+                                        } catch (e: Exception) {
+                                            println("[Error] Stream chat failed: ${e.message}")
+                                            errorMessage = e.message
+                                        } finally {
+                                            isChatLoading = false
+                                        }
                                     }
+                                },
+                                enabled = !isChatLoading && inputText.isNotEmpty()
+                            ) {
+                                if (isChatLoading) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(20.dp),
+                                        color = MaterialTheme.colors.onPrimary
+                                    )
+                                } else {
+                                    Text("Send [Stream]")
                                 }
-                            }) {
-                                Text("Send [Stream]")
                             }
                             // Non-stream chat button
-                            Button(onClick = {
-                                coroutineScope.launch {
-                                    userMsg = inputText
-                                    inputText = ""
-                                    var text = "[Coze Response (Non-Stream)]\n"
-                                    chatDemo.noneStreamCreateAndPoll(userMsg).collect { phrase ->
-                                        text += phrase
-                                        greetings = greetings.dropLast(1) + text
-                                        displayText = greetings.joinToString("\n")
+                            Button(
+                                onClick = {
+                                    coroutineScope.launch {
+                                        isChatLoading = true
+                                        try {
+                                            userMsg = inputText
+                                            inputText = ""
+                                            greetings = listOf("[Coze Response (Non-Stream)]\n")
+                                            chatDemo.noneStreamCreateAndPoll(userMsg).collect { phrase ->
+                                                val lastText = greetings.last()
+                                                greetings = greetings.dropLast(1) + (lastText + phrase)
+                                            }
+                                        } catch (e: Exception) {
+                                            println("[Error] Non-stream chat failed: ${e.message}")
+                                            errorMessage = e.message
+                                        } finally {
+                                            isChatLoading = false
+                                        }
                                     }
+                                },
+                                enabled = !isChatLoading && inputText.isNotEmpty()
+                            ) {
+                                if (isChatLoading) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(20.dp),
+                                        color = MaterialTheme.colors.onPrimary
+                                    )
+                                } else {
+                                    Text("Send [Non-Stream]")
                                 }
-                            }) {
-                                Text("Send [Non-Stream]")
                             }
                         }
-                    }
-                }
 
-                // User message display
-                if (userMsg.isNotEmpty()) {
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        elevation = 4.dp
-                    ) {
-                        Column(modifier = Modifier.padding(16.dp)) {
-                            Text(text = "[User Msg]\n$userMsg")
+                        // 显示用户消息
+                        if (userMsg.isNotEmpty()) {
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                elevation = 2.dp
+                            ) {
+                                Column(modifier = Modifier.padding(8.dp)) {
+                                    Text(text = "[User Message]\n$userMsg")
+                                }
+                            }
                         }
-                    }
-                }
 
-                // Chat response display
-                if (displayText.isNotEmpty()) {
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        elevation = 4.dp
-                    ) {
-                        Column(
-                            modifier = Modifier
-                                .heightIn(max = 500.dp)
-                                .verticalScroll(rememberScrollState())
-                                .padding(16.dp)
-                        ) {
-                            Text(text = displayText)
+                        // 显示聊天响应
+                        if (greetings.isNotEmpty()) {
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                elevation = 2.dp
+                            ) {
+                                Column(
+                                    modifier = Modifier
+                                        .heightIn(max = 300.dp)
+                                        .verticalScroll(rememberScrollState())
+                                        .padding(8.dp)
+                                ) {
+                                    Text(text = greetings.last())
+                                }
+                            }
                         }
                     }
                 }
@@ -214,109 +275,161 @@ fun App() {
                                 value = conversationId,
                                 onValueChange = { conversationId = it },
                                 label = { Text("对话ID") },
-                                modifier = Modifier.fillMaxWidth()
+                                modifier = Modifier.fillMaxWidth(),
+                                enabled = !isListConversationsLoading && !isCreateConversationLoading && 
+                                         !isGetConversationLoading && !isClearConversationLoading
                             )
 
-                            // 对话操作按钮
+                            // ��话操作按钮
                             FlowRow(
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                                 verticalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
-                                Button(onClick = {
-                                    coroutineScope.launch {
-                                        try {
-                                            val response = conversationDemo.listConversations()
-                                            conversations = response.data?.conversations ?: emptyList()
-                                            // 自动填写第一个对话的ID
-                                            if (conversations.isNotEmpty()) {
-                                                conversationId = conversations.first().id
+                                Button(
+                                    onClick = {
+                                        coroutineScope.launch {
+                                            isListConversationsLoading = true
+                                            try {
+                                                val response = conversationDemo.listConversations()
+                                                conversations = response.data?.conversations ?: emptyList()
+                                                if (conversations.isNotEmpty()) {
+                                                    conversationId = conversations.first().id
+                                                }
+                                                errorMessage = null
+                                            } catch (e: Exception) {
+                                                println("[Error] ${e.message}")
+                                                errorMessage = e.message
+                                            } finally {
+                                                isListConversationsLoading = false
                                             }
-                                            errorMessage = null
-                                        } catch (e: Exception) {
-                                            println("[Error] ${e.message}")
-                                            errorMessage = e.message
                                         }
+                                    },
+                                    enabled = !isListConversationsLoading
+                                ) {
+                                    if (isListConversationsLoading) {
+                                        CircularProgressIndicator(
+                                            modifier = Modifier.size(20.dp),
+                                            color = MaterialTheme.colors.onPrimary
+                                        )
+                                    } else {
+                                        Text("列出对话")
                                     }
-                                }) {
-                                    Text("列出对话")
                                 }
 
-                                Button(onClick = {
-                                    coroutineScope.launch {
-                                        try {
-                                            val timestamp = Clock.System.now().toEpochMilliseconds()
-                                            val response = conversationDemo.createConversation(
-                                                messages = null,
-                                                metaData = mapOf(
-                                                    "created_time" to timestamp.toString(),
-                                                    "source" to "demo_app"
+                                Button(
+                                    onClick = {
+                                        coroutineScope.launch {
+                                            isCreateConversationLoading = true
+                                            try {
+                                                val timestamp = Clock.System.now().toEpochMilliseconds()
+                                                val response = conversationDemo.createConversation(
+                                                    messages = null,
+                                                    metaData = mapOf(
+                                                        "created_time" to timestamp.toString(),
+                                                        "source" to "demo_app"
+                                                    )
                                                 )
-                                            )
-                                            selectedConversationId = response.data?.id
-                                            errorMessage = null
-                                            
-                                            // 更新对话结果显示
-                                            val conversation = response.data
-                                            conversationResult = if (conversation == null) {
-                                                "[Create Conversation]\nFailed to create conversation"
-                                            } else {
-                                                buildString {
-                                                    appendLine("[Create Conversation]")
-                                                    appendLine("ID: ${conversation.id}")
-                                                    appendLine("Created: ${conversation.createdAt}")
-                                                    appendLine("Meta Data: ${conversation.metaData}")
+                                                selectedConversationId = response.data?.id
+                                                errorMessage = null
+                                                
+                                                val conversation = response.data
+                                                conversationResult = if (conversation == null) {
+                                                    "[Create Conversation]\nFailed to create conversation"
+                                                } else {
+                                                    buildString {
+                                                        appendLine("[Create Conversation]")
+                                                        appendLine("ID: ${conversation.id}")
+                                                        appendLine("Created: ${conversation.createdAt}")
+                                                        appendLine("Meta Data: ${conversation.metaData}")
+                                                    }
                                                 }
+                                            } catch (e: Exception) {
+                                                println("[Error] Create conversation failed: ${e.message}")
+                                                errorMessage = e.message
+                                            } finally {
+                                                isCreateConversationLoading = false
                                             }
-                                        } catch (e: Exception) {
-                                            println("[Error] Create conversation failed: ${e.message}")
-                                            errorMessage = e.message
                                         }
+                                    },
+                                    enabled = !isCreateConversationLoading
+                                ) {
+                                    if (isCreateConversationLoading) {
+                                        CircularProgressIndicator(
+                                            modifier = Modifier.size(20.dp),
+                                            color = MaterialTheme.colors.onPrimary
+                                        )
+                                    } else {
+                                        Text("创建对话")
                                     }
-                                }) {
-                                    Text("创建对话")
                                 }
 
-                                Button(onClick = {
-                                    coroutineScope.launch {
-                                        try {
-                                            val result = conversationDemo.getConversation(conversationId)
-                                            val conversation = result.data
-                                            conversationResult = if (conversation == null) {
-                                                "[Conversation Details]\nConversation not found"
-                                            } else {
-                                                buildString {
-                                                    appendLine("[Conversation Details]")
-                                                    appendLine("ID: ${conversation.id}")
-                                                    appendLine("Created: ${conversation.createdAt}")
-                                                    appendLine("Last Section ID: ${conversation.lastSectionId ?: "N/A"}")
-                                                    appendLine("Meta Data: ${conversation.metaData}")
+                                Button(
+                                    onClick = {
+                                        coroutineScope.launch {
+                                            isGetConversationLoading = true
+                                            try {
+                                                val result = conversationDemo.getConversation(conversationId)
+                                                val conversation = result.data
+                                                conversationResult = if (conversation == null) {
+                                                    "[Conversation Details]\nConversation not found"
+                                                } else {
+                                                    buildString {
+                                                        appendLine("[Conversation Details]")
+                                                        appendLine("ID: ${conversation.id}")
+                                                        appendLine("Created: ${conversation.createdAt}")
+                                                        appendLine("Last Section ID: ${conversation.lastSectionId ?: "N/A"}")
+                                                        appendLine("Meta Data: ${conversation.metaData}")
+                                                    }
                                                 }
+                                            } catch (e: Exception) {
+                                                println("[Error] Get conversation failed: ${e.message}")
+                                                errorMessage = e.message
+                                            } finally {
+                                                isGetConversationLoading = false
                                             }
-                                        } catch (e: Exception) {
-                                            println("[Error] Get conversation failed: ${e.message}")
-                                            errorMessage = e.message
                                         }
+                                    },
+                                    enabled = !isGetConversationLoading && conversationId.isNotEmpty()
+                                ) {
+                                    if (isGetConversationLoading) {
+                                        CircularProgressIndicator(
+                                            modifier = Modifier.size(20.dp),
+                                            color = MaterialTheme.colors.onPrimary
+                                        )
+                                    } else {
+                                        Text("获取详情")
                                     }
-                                }) {
-                                    Text("获取详情")
                                 }
 
-                                Button(onClick = {
-                                    coroutineScope.launch {
-                                        try {
-                                            val result = conversationDemo.clearConversation(conversationId)
-                                            conversationResult = buildString {
-                                                appendLine("[Clear Result]")
-                                                appendLine("Session ID: ${result.data?.id}")
-                                                appendLine("Conversation ID: ${result.data?.conversationId}")
+                                Button(
+                                    onClick = {
+                                        coroutineScope.launch {
+                                            isClearConversationLoading = true
+                                            try {
+                                                val result = conversationDemo.clearConversation(conversationId)
+                                                conversationResult = buildString {
+                                                    appendLine("[Clear Result]")
+                                                    appendLine("Session ID: ${result.data?.id}")
+                                                    appendLine("Conversation ID: ${result.data?.conversationId}")
+                                                }
+                                            } catch (e: Exception) {
+                                                println("[Error] Clear conversation failed: ${e.message}")
+                                                errorMessage = e.message
+                                            } finally {
+                                                isClearConversationLoading = false
                                             }
-                                        } catch (e: Exception) {
-                                            println("[Error] Clear conversation failed: ${e.message}")
-                                            errorMessage = e.message
                                         }
+                                    },
+                                    enabled = !isClearConversationLoading && conversationId.isNotEmpty()
+                                ) {
+                                    if (isClearConversationLoading) {
+                                        CircularProgressIndicator(
+                                            modifier = Modifier.size(20.dp),
+                                            color = MaterialTheme.colors.onPrimary
+                                        )
+                                    } else {
+                                        Text("清除对话")
                                     }
-                                }) {
-                                    Text("清除对话")
                                 }
                             }
                         }
@@ -370,6 +483,7 @@ fun App() {
                                                 Button(
                                                     onClick = {
                                                         coroutineScope.launch {
+                                                            isClearConversationLoading = true
                                                             try {
                                                                 conversationDemo.clearConversation(conversation.id)
                                                                 val response = conversationDemo.listConversations()
@@ -378,12 +492,22 @@ fun App() {
                                                             } catch (e: Exception) {
                                                                 println("[Error] Clear conversation failed: ${e.message}")
                                                                 errorMessage = e.message
+                                                            } finally {
+                                                                isClearConversationLoading = false
                                                             }
                                                         }
                                                     },
-                                                    modifier = Modifier.weight(1f)
+                                                    modifier = Modifier.weight(1f),
+                                                    enabled = !isClearConversationLoading
                                                 ) {
-                                                    Text("清除")
+                                                    if (isClearConversationLoading) {
+                                                        CircularProgressIndicator(
+                                                            modifier = Modifier.size(20.dp),
+                                                            color = MaterialTheme.colors.onPrimary
+                                                        )
+                                                    } else {
+                                                        Text("清除")
+                                                    }
                                                 }
                                             }
                                         }
@@ -408,11 +532,13 @@ fun App() {
                                     value = messageContent,
                                     onValueChange = { messageContent = it },
                                     modifier = Modifier.weight(1f),
-                                    placeholder = { Text("输入消息内容") }
+                                    placeholder = { Text("输入消息内容") },
+                                    enabled = !isCreateMessageLoading
                                 )
                                 Button(
                                     onClick = {
                                         coroutineScope.launch {
+                                            isCreateMessageLoading = true
                                             try {
                                                 messageDemo.createConversationMessage(
                                                     conversationId = currentConversationId,
@@ -425,12 +551,21 @@ fun App() {
                                             } catch (e: Exception) {
                                                 println("[Error] Create message failed: ${e.message}")
                                                 errorMessage = e.message
+                                            } finally {
+                                                isCreateMessageLoading = false
                                             }
                                         }
                                     },
-                                    enabled = messageContent.isNotEmpty()
+                                    enabled = !isCreateMessageLoading && messageContent.isNotEmpty()
                                 ) {
-                                    Text("发送")
+                                    if (isCreateMessageLoading) {
+                                        CircularProgressIndicator(
+                                            modifier = Modifier.size(20.dp),
+                                            color = MaterialTheme.colors.onPrimary
+                                        )
+                                    } else {
+                                        Text("发送")
+                                    }
                                 }
                             }
 
@@ -460,44 +595,68 @@ fun App() {
                                                     Text(message.content)
                                                 }
                                                 Row {
-                                                    IconButton(onClick = {
-                                                        selectedMessageId = message.id
-                                                        coroutineScope.launch {
-                                                            try {
-                                                                val messageDetails = messageDemo.retrieveMessage(currentConversationId, message.id)
-                                                                conversationResult = buildString {
-                                                                    appendLine("[消息详情]")
-                                                                    appendLine("ID: ${messageDetails.id}")
-                                                                    appendLine("角色: ${messageDetails.role}")
-                                                                    appendLine("内容类型: ${messageDetails.contentType}")
-                                                                    appendLine("创建时间: ${messageDetails.createdAt}")
-                                                                    appendLine("更新时间: ${messageDetails.updatedAt}")
-                                                                    appendLine("内容: ${messageDetails.content}")
+                                                    IconButton(
+                                                        onClick = {
+                                                            selectedMessageId = message.id
+                                                            coroutineScope.launch {
+                                                                isGetMessageLoading = true
+                                                                try {
+                                                                    val messageDetails = messageDemo.retrieveMessage(currentConversationId, message.id)
+                                                                    conversationResult = buildString {
+                                                                        appendLine("[消息详情]")
+                                                                        appendLine("ID: ${messageDetails.id}")
+                                                                        appendLine("角色: ${messageDetails.role}")
+                                                                        appendLine("内容类型: ${messageDetails.contentType}")
+                                                                        appendLine("创建时间: ${messageDetails.createdAt}")
+                                                                        appendLine("更新时间: ${messageDetails.updatedAt}")
+                                                                        appendLine("内容: ${messageDetails.content}")
+                                                                    }
+                                                                    errorMessage = null
+                                                                } catch (e: Exception) {
+                                                                    println("[Error] Retrieve message failed: ${e.message}")
+                                                                    errorMessage = e.message
+                                                                } finally {
+                                                                    isGetMessageLoading = false
                                                                 }
-                                                                errorMessage = null
-                                                            } catch (e: Exception) {
-                                                                println("[Error] Retrieve message failed: ${e.message}")
-                                                                errorMessage = e.message
                                                             }
+                                                        },
+                                                        enabled = !isGetMessageLoading
+                                                    ) {
+                                                        if (isGetMessageLoading && selectedMessageId == message.id) {
+                                                            CircularProgressIndicator(
+                                                                modifier = Modifier.size(16.dp)
+                                                            )
+                                                        } else {
+                                                            Text("ℹ️")
                                                         }
-                                                    }) {
-                                                        Text("ℹ️")
                                                     }
-                                                    IconButton(onClick = {
-                                                        selectedMessageId = message.id
-                                                        coroutineScope.launch {
-                                                            try {
-                                                                messageDemo.deleteConversationMessage(currentConversationId, message.id)
-                                                                val response = messageDemo.listConversationMessages(currentConversationId)
-                                                                messages = response.data
-                                                                errorMessage = null
-                                                            } catch (e: Exception) {
-                                                                println("[Error] Delete message failed: ${e.message}")
-                                                                errorMessage = e.message
+                                                    IconButton(
+                                                        onClick = {
+                                                            selectedMessageId = message.id
+                                                            coroutineScope.launch {
+                                                                isDeleteMessageLoading = true
+                                                                try {
+                                                                    messageDemo.deleteConversationMessage(currentConversationId, message.id)
+                                                                    val response = messageDemo.listConversationMessages(currentConversationId)
+                                                                    messages = response.data
+                                                                    errorMessage = null
+                                                                } catch (e: Exception) {
+                                                                    println("[Error] Delete message failed: ${e.message}")
+                                                                    errorMessage = e.message
+                                                                } finally {
+                                                                    isDeleteMessageLoading = false
+                                                                }
                                                             }
+                                                        },
+                                                        enabled = !isDeleteMessageLoading
+                                                    ) {
+                                                        if (isDeleteMessageLoading && selectedMessageId == message.id) {
+                                                            CircularProgressIndicator(
+                                                                modifier = Modifier.size(16.dp)
+                                                            )
+                                                        } else {
+                                                            Text("×")
                                                         }
-                                                    }) {
-                                                        Text("×")
                                                     }
                                                 }
                                             }

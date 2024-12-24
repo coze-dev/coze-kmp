@@ -33,7 +33,7 @@ object AuthService {
 
         val jsonPayload = Json.encodeToString(JsonObject.serializer(), payload)
 
-        println("_getJWTToken post payload: $jsonPayload, token: ${config["token"]}")
+        // println("_getJWTToken post payload: $jsonPayload, token: ${config["token"]}")
         val response = api.request(HttpMethod.Post, "/api/permission/oauth2/token", config["token"] as String, payload, options)
         return Json.decodeFromString(serializer<JWTToken>(), response.bodyAsText())
     }

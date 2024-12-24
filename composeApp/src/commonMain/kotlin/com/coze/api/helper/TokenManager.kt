@@ -4,19 +4,26 @@ import com.coze.api.auth.AuthService
 import com.coze.api.model.auth.JWTTokenConfig
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.*
+import kotlinx.datetime.Clock
 
 object TokenManager {
     private var _token: String? = null
+    private var tokenExpireTime: Long = 0
 
     suspend fun getTokenAsync(): String {
-//        println("getTokenAsync: $_token")
-        if (_token == null) {
-            _token = generateToken()
+        val now = Clock.System.now().epochSeconds
+        
+        // 如果token不存在或已过期（提前30秒认为过期），重新获取
+        if (_token == null || now >= tokenExpireTime - 30) {
+            val (token, expireIn) = generateToken()
+            _token = token
+            // 根据返回的过期时间设置
+            tokenExpireTime = now + expireIn
         }
         return _token ?: throw IllegalStateException("Token not available")
     }
 
-    private suspend fun generateToken(): String {
+    private suspend fun generateToken(): Pair<String, Long> {
         try {
             val config = JWTTokenConfig(
                 appId = API_CONFIG.APP_ID,
@@ -37,7 +44,8 @@ object TokenManager {
             }
             println("token: $token")
 
-            return token
+            // 返回token和过期时间
+            return Pair(token, jwtRsp.expiresIn ?: 900L)
         } catch (e: Exception) {
             println("Token generation failed: ${e.message}")
             throw IllegalStateException("Failed to generate token: ${e.message}", e)
@@ -46,6 +54,7 @@ object TokenManager {
 
     fun clearToken() {
         _token = null
+        tokenExpireTime = 0
     }
 
     private object API_CONFIG {
@@ -83,4 +92,4 @@ FQtEbyXUN8BGlP3yyRJr+6v/fw==
 -----END PRIVATE KEY-----
         """
     }
-} 
+}

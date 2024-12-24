@@ -2,6 +2,7 @@ package com.coze.demo
 
 import com.coze.api.conversation.ConversationService
 import com.coze.api.model.ApiResponse
+import com.coze.api.model.EnterMessage
 import com.coze.api.model.conversation.*
 
 /**

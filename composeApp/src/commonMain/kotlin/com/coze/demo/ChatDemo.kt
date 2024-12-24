@@ -2,6 +2,9 @@ package com.coze.demo
 
 import com.coze.api.chat.ChatService
 import com.coze.api.model.ChatEventType
+import com.coze.api.model.ChatStatus
+import com.coze.api.model.EnterMessage
+import com.coze.api.model.MessageType
 import com.coze.api.model.chat.*
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
@@ -22,7 +25,7 @@ class ChatDemo {
             ChatRequest(
                 botId = defaultBotId,
                 userId = defaultUserId,
-                additionalMessages = listOf(Message(role = "user", content = greeting))
+                additionalMessages = listOf(EnterMessage(role = "user", content = greeting))
             )
         ).data
         if (data != null) {
@@ -37,7 +40,7 @@ class ChatDemo {
                 botId = defaultBotId,
                 userId = defaultUserId,
                 additionalMessages = listOf(
-                    Message(role = "user", content = messageContent)
+                    EnterMessage(role = "user", content = messageContent)
                 )
             )
         )
@@ -59,7 +62,7 @@ class ChatDemo {
             ChatRequest(
                 botId = defaultBotId,
                 userId = defaultUserId,
-                additionalMessages = listOf(Message(role = "user", content = messageContent))
+                additionalMessages = listOf(EnterMessage(role = "user", content = messageContent))
             )
         )
         emit("(Response arrived.)")

@@ -5,7 +5,6 @@ import com.coze.api.helper.RequestOptions
 import com.coze.api.helper.getJWTProvider
 import com.coze.api.helper.isBrowser
 import com.coze.api.model.APIError
-import com.coze.api.model.ApiResponse
 import kotlinx.datetime.Clock
 import com.coze.api.model.auth.*
 import io.ktor.client.statement.bodyAsText

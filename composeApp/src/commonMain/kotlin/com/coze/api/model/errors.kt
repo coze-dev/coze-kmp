@@ -158,3 +158,9 @@ class JSONParseError(
     message: String,
     cause: Throwable? = null
 ) : Exception(message, cause)
+
+@Serializable
+data class ErrorData(
+    val code: Int,
+    val msg: String
+)

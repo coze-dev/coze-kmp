@@ -5,6 +5,9 @@ import com.coze.api.helper.RequestOptions
 import com.coze.api.model.chat.*
 import com.coze.api.model.ApiResponse
 import com.coze.api.model.ChatEventType
+import com.coze.api.model.ChatStatus
+import com.coze.api.model.ChatV3Message
+import com.coze.api.model.EnterMessage
 import kotlinx.coroutines.delay
 import kotlinx.datetime.Clock
 import kotlin.random.Random
@@ -106,7 +109,7 @@ class ChatService : APIBase() {
             )
         ))
 
-    private fun handleAdditionalMessages(additionalMessages: List<Message>?): List<Message>? {
+    private fun handleAdditionalMessages(additionalMessages: List<EnterMessage>?): List<EnterMessage>? {
         return additionalMessages?.map { it.copy(content = it.content ?: "") }
     }
 

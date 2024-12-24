@@ -1,5 +1,6 @@
 package com.coze.api.model.conversation
 
+import com.coze.api.model.EnterMessage
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
@@ -75,13 +76,4 @@ data class ConversationSession(
     val id: String,
     @SerialName("conversation_id")
     val conversationId: String
-)
-
-/**
- * Message in a conversation
- */
-@Serializable
-data class EnterMessage(
-    val role: String,
-    val content: String
 ) 

@@ -1,15 +1,20 @@
 package com.coze.demo
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import org.jetbrains.compose.ui.tooling.preview.Preview
+import com.coze.api.model.ChatV3Message
+import com.coze.api.model.conversation.Conversation
 import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
+import org.jetbrains.compose.ui.tooling.preview.Preview
 
 @OptIn(ExperimentalLayoutApi::class)
 @Preview
@@ -19,6 +24,7 @@ fun App() {
     val authDemo = AuthDemo
     val chatDemo = ChatDemo()
     val conversationDemo = ConversationDemo()
+    val messageDemo = remember { MessageDemo() }
     val coroutineScope = rememberCoroutineScope()
     val scrollState = rememberScrollState()
 
@@ -31,6 +37,14 @@ fun App() {
         var authResult by remember { mutableStateOf("") }
         var conversationResult by remember { mutableStateOf("") }
         var conversationId by remember { mutableStateOf("") }
+        
+        // 新增状态管理
+        var selectedConversationId by remember { mutableStateOf<String?>(null) }
+        var selectedMessageId by remember { mutableStateOf<String?>(null) }
+        var messageContent by remember { mutableStateOf("") }
+        var messages by remember { mutableStateOf<List<ChatV3Message>>(emptyList()) }
+        var conversations by remember { mutableStateOf<List<Conversation>>(emptyList()) }
+        var errorMessage by remember { mutableStateOf<String?>(null) }
 
         LaunchedEffect(greetings) {
             displayText = greetings.joinToString("\n")
@@ -47,6 +61,56 @@ fun App() {
                     .padding(horizontal = 20.dp, vertical = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
+                // 错误信息显示
+                errorMessage?.let {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        elevation = 4.dp
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = it,
+                                color = androidx.compose.ui.graphics.Color.Red,
+                                modifier = Modifier.weight(1f)
+                            )
+                            IconButton(
+                                onClick = { errorMessage = null }
+                            ) {
+                                Text("×")
+                            }
+                        }
+                    }
+                }
+
+                // Authentication test section
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    elevation = 4.dp
+                ) {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text("Authentication", style = MaterialTheme.typography.h6)
+                        Button(onClick = {
+                            coroutineScope.launch {
+                                authResult = authDemo.getJWTAuth() ?: ""
+                            }
+                        }) {
+                            Text("Test JWT Auth")
+                        }
+                        if (authResult.isNotEmpty()) {
+                            Text(text = "[Auth Result]\n$authResult")
+                        }
+                    }
+                }
+
                 // Chat section
                 Card(
                     modifier = Modifier.fillMaxWidth(),
@@ -130,95 +194,88 @@ fun App() {
                     }
                 }
 
-                // Conversation management section
+                // 对话管理部分
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     elevation = 4.dp
                 ) {
                     Column(
                         modifier = Modifier.padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
-                        Text("Conversation Management", style = MaterialTheme.typography.h6)
-                        FlowRow(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        Text("对话管理", style = MaterialTheme.typography.h6)
+                        
+                        // 对话操作区域
+                        Column(
                             verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            // List conversations button
-                            Button(onClick = {
-                                coroutineScope.launch {
-                                    try {
-                                        val result = conversationDemo.listConversations()
-                                        val conversations = result.data?.conversations
-                                        conversationResult = if (conversations.isNullOrEmpty()) {
-                                            "[Conversations List]\nNo conversations found"
-                                        } else {
-                                            conversationId = conversations.firstOrNull()?.id ?: ""
+                            // 对话ID输入
+                            TextField(
+                                value = conversationId,
+                                onValueChange = { conversationId = it },
+                                label = { Text("对话ID") },
+                                modifier = Modifier.fillMaxWidth()
+                            )
+
+                            // 对话操作按钮
+                            FlowRow(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Button(onClick = {
+                                    coroutineScope.launch {
+                                        try {
+                                            val response = conversationDemo.listConversations()
+                                            conversations = response.data?.conversations ?: emptyList()
+                                            // 自动填写第一个对话的ID
+                                            if (conversations.isNotEmpty()) {
+                                                conversationId = conversations.first().id
+                                            }
+                                            errorMessage = null
+                                        } catch (e: Exception) {
+                                            println("[Error] ${e.message}")
+                                            errorMessage = e.message
+                                        }
+                                    }
+                                }) {
+                                    Text("列出对话")
+                                }
+
+                                Button(onClick = {
+                                    coroutineScope.launch {
+                                        try {
+                                            val timestamp = Clock.System.now().toEpochMilliseconds()
+                                            val response = conversationDemo.createConversation(
+                                                messages = null,
+                                                metaData = mapOf(
+                                                    "created_time" to timestamp.toString(),
+                                                    "source" to "demo_app"
+                                                )
+                                            )
+                                            selectedConversationId = response.data?.id
+                                            errorMessage = null
                                             
-                                            buildString {
-                                                appendLine("[Conversations List]")
-                                                appendLine("Has more: ${result.data.hasMore}")
-                                                appendLine("---")
-                                                conversations.forEach { conv ->
-                                                    appendLine("ID: ${conv.id}")
-                                                    appendLine("Created: ${conv.createdAt}")
-                                                    appendLine("Last Section ID: ${conv.lastSectionId ?: "N/A"}")
-                                                    appendLine("Meta Data: ${conv.metaData}")
-                                                    appendLine("---")
+                                            // 更新对话结果显示
+                                            val conversation = response.data
+                                            conversationResult = if (conversation == null) {
+                                                "[Create Conversation]\nFailed to create conversation"
+                                            } else {
+                                                buildString {
+                                                    appendLine("[Create Conversation]")
+                                                    appendLine("ID: ${conversation.id}")
+                                                    appendLine("Created: ${conversation.createdAt}")
+                                                    appendLine("Meta Data: ${conversation.metaData}")
                                                 }
                                             }
+                                        } catch (e: Exception) {
+                                            println("[Error] Create conversation failed: ${e.message}")
+                                            errorMessage = e.message
                                         }
-                                    } catch (e: Exception) {
-                                        conversationResult = "[Error] ${e.message}"
                                     }
+                                }) {
+                                    Text("创建对话")
                                 }
-                            }) {
-                                Text("List Conversations")
-                            }
 
-                            // Create conversation button
-                            Button(onClick = {
-                                coroutineScope.launch {
-                                    try {
-                                        val timestamp = Clock.System.now().toEpochMilliseconds()
-                                        val metaData = mapOf(
-                                            "created_time" to timestamp.toString(),
-                                            "source" to "demo_app"
-                                        )
-                                        val result = conversationDemo.createConversation(
-                                            metaData = metaData
-                                        )
-                                        val conversation = result.data
-                                        conversationResult = if (conversation == null) {
-                                            "[Create Conversation]\nFailed to create conversation"
-                                        } else {
-                                            buildString {
-                                                appendLine("[Create Conversation]")
-                                                appendLine("ID: ${conversation.id}")
-                                                appendLine("Created: ${conversation.createdAt}")
-                                                appendLine("Meta Data: ${conversation.metaData}")
-                                            }
-                                        }
-                                    } catch (e: Exception) {
-                                        conversationResult = "[Error] ${e.message}"
-                                    }
-                                }
-                            }) {
-                                Text("Create Conversation")
-                            }
-
-                            // Conversation operations row
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                TextField(
-                                    value = conversationId,
-                                    onValueChange = { conversationId = it },
-                                    label = { Text("Conversation ID") },
-                                    modifier = Modifier.weight(1f)
-                                )
-                                // Get conversation button
                                 Button(onClick = {
                                     coroutineScope.launch {
                                         try {
@@ -236,13 +293,14 @@ fun App() {
                                                 }
                                             }
                                         } catch (e: Exception) {
-                                            conversationResult = "[Error] ${e.message}"
+                                            println("[Error] Get conversation failed: ${e.message}")
+                                            errorMessage = e.message
                                         }
                                     }
                                 }) {
-                                    Text("Get")
+                                    Text("获取详情")
                                 }
-                                // Clear conversation button
+
                                 Button(onClick = {
                                     coroutineScope.launch {
                                         try {
@@ -253,53 +311,200 @@ fun App() {
                                                 appendLine("Conversation ID: ${result.data?.conversationId}")
                                             }
                                         } catch (e: Exception) {
-                                            conversationResult = "[Error] ${e.message}"
+                                            println("[Error] Clear conversation failed: ${e.message}")
+                                            errorMessage = e.message
                                         }
                                     }
                                 }) {
-                                    Text("Clear")
+                                    Text("清除对话")
                                 }
                             }
                         }
-                    }
-                }
 
-                // Conversation result display
-                if (conversationResult.isNotEmpty()) {
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        elevation = 4.dp
-                    ) {
-                        Column(
-                            modifier = Modifier
-                                .heightIn(max = 300.dp)
-                                .verticalScroll(rememberScrollState())
-                                .padding(16.dp)
-                        ) {
+                        // 对话操作结果显示
+                        if (conversationResult.isNotEmpty()) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text("操作结果", style = MaterialTheme.typography.subtitle1)
                             Text(text = conversationResult)
                         }
-                    }
-                }
 
-                // Authentication test section
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    elevation = 4.dp
-                ) {
-                    Column(
-                        modifier = Modifier.padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Text("Authentication", style = MaterialTheme.typography.h6)
-                        Button(onClick = {
-                            coroutineScope.launch {
-                                authResult = authDemo.getJWTAuth() ?: ""
+                        // 对话列表显示
+                        if (conversations.isNotEmpty()) {
+                            Text("对话列表", style = MaterialTheme.typography.subtitle1)
+                            LazyColumn(
+                                modifier = Modifier.heightIn(max = 200.dp)
+                            ) {
+                                items(conversations) { conversation ->
+                                    Card(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(vertical = 4.dp),
+                                        elevation = 2.dp
+                                    ) {
+                                        Column(
+                                            modifier = Modifier.padding(8.dp)
+                                        ) {
+                                            Text("ID: ${conversation.id}")
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                            ) {
+                                                Button(
+                                                    onClick = {
+                                                        selectedConversationId = conversation.id
+                                                        coroutineScope.launch {
+                                                            try {
+                                                                val response = messageDemo.listConversationMessages(conversation.id)
+                                                                messages = response.data
+                                                                errorMessage = null
+                                                            } catch (e: Exception) {
+                                                                println("[Error] List messages failed: ${e.message}")
+                                                                errorMessage = e.message
+                                                            }
+                                                        }
+                                                    },
+                                                    modifier = Modifier.weight(1f)
+                                                ) {
+                                                    Text("查看消息")
+                                                }
+                                                Button(
+                                                    onClick = {
+                                                        coroutineScope.launch {
+                                                            try {
+                                                                conversationDemo.clearConversation(conversation.id)
+                                                                val response = conversationDemo.listConversations()
+                                                                conversations = response.data?.conversations ?: emptyList()
+                                                                errorMessage = null
+                                                            } catch (e: Exception) {
+                                                                println("[Error] Clear conversation failed: ${e.message}")
+                                                                errorMessage = e.message
+                                                            }
+                                                        }
+                                                    },
+                                                    modifier = Modifier.weight(1f)
+                                                ) {
+                                                    Text("清除")
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
                             }
-                        }) {
-                            Text("Test JWT Auth")
                         }
-                        if (authResult.isNotEmpty()) {
-                            Text(text = "[Auth Result]\n$authResult")
+
+                        // 消息管理
+                        selectedConversationId?.let { currentConversationId ->
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Text("当前对话消息", style = MaterialTheme.typography.subtitle1)
+                            Text("对话ID: $currentConversationId", style = MaterialTheme.typography.caption)
+                            
+                            // 消息输入
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                TextField(
+                                    value = messageContent,
+                                    onValueChange = { messageContent = it },
+                                    modifier = Modifier.weight(1f),
+                                    placeholder = { Text("输入消息内容") }
+                                )
+                                Button(
+                                    onClick = {
+                                        coroutineScope.launch {
+                                            try {
+                                                messageDemo.createConversationMessage(
+                                                    conversationId = currentConversationId,
+                                                    content = messageContent
+                                                )
+                                                messageContent = ""
+                                                val response = messageDemo.listConversationMessages(currentConversationId)
+                                                messages = response.data
+                                                errorMessage = null
+                                            } catch (e: Exception) {
+                                                println("[Error] Create message failed: ${e.message}")
+                                                errorMessage = e.message
+                                            }
+                                        }
+                                    },
+                                    enabled = messageContent.isNotEmpty()
+                                ) {
+                                    Text("发送")
+                                }
+                            }
+
+                            // 消息列表
+                            if (messages.isNotEmpty()) {
+                                LazyColumn(
+                                    modifier = Modifier.heightIn(max = 300.dp),
+                                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    items(messages) { message ->
+                                        Card(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            elevation = 2.dp
+                                        ) {
+                                            Row(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .padding(8.dp),
+                                                horizontalArrangement = Arrangement.SpaceBetween,
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Column(modifier = Modifier.weight(1f)) {
+                                                    Text(
+                                                        "角色: ${message.role}",
+                                                        style = MaterialTheme.typography.caption
+                                                    )
+                                                    Text(message.content)
+                                                }
+                                                Row {
+                                                    IconButton(onClick = {
+                                                        selectedMessageId = message.id
+                                                        coroutineScope.launch {
+                                                            try {
+                                                                val messageDetails = messageDemo.retrieveMessage(currentConversationId, message.id)
+                                                                conversationResult = buildString {
+                                                                    appendLine("[消息详情]")
+                                                                    appendLine("ID: ${messageDetails.id}")
+                                                                    appendLine("角色: ${messageDetails.role}")
+                                                                    appendLine("内容类型: ${messageDetails.contentType}")
+                                                                    appendLine("创建时间: ${messageDetails.createdAt}")
+                                                                    appendLine("更新时间: ${messageDetails.updatedAt}")
+                                                                    appendLine("内容: ${messageDetails.content}")
+                                                                }
+                                                                errorMessage = null
+                                                            } catch (e: Exception) {
+                                                                println("[Error] Retrieve message failed: ${e.message}")
+                                                                errorMessage = e.message
+                                                            }
+                                                        }
+                                                    }) {
+                                                        Text("ℹ️")
+                                                    }
+                                                    IconButton(onClick = {
+                                                        selectedMessageId = message.id
+                                                        coroutineScope.launch {
+                                                            try {
+                                                                messageDemo.deleteConversationMessage(currentConversationId, message.id)
+                                                                val response = messageDemo.listConversationMessages(currentConversationId)
+                                                                messages = response.data
+                                                                errorMessage = null
+                                                            } catch (e: Exception) {
+                                                                println("[Error] Delete message failed: ${e.message}")
+                                                                errorMessage = e.message
+                                                            }
+                                                        }
+                                                    }) {
+                                                        Text("×")
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
                 }

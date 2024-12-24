@@ -1,5 +1,6 @@
 package com.coze.api.model.chat
 
+import com.coze.api.model.EnterMessage
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
@@ -10,7 +11,7 @@ data class ChatRequest(
     @SerialName("user_id")
     var userId: String? = null,
     @SerialName("additional_messages")
-    val additionalMessages: List<Message>? = null,
+    val additionalMessages: List<EnterMessage>? = null,
     @SerialName("custom_variables")
     val customVariables: Map<String, String>? = null,
     @SerialName("auto_save_history")
@@ -21,7 +22,6 @@ data class ChatRequest(
     val conversationId: String? = null,
     @SerialName("extra_params")
     val extraParams: List<String>? = null,
-
     val stream: Boolean? = false
 )
 

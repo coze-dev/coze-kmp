@@ -73,7 +73,7 @@ open class APIClient(private val baseURL: String? = API_URL, val token: String? 
                 this.method = method
                 headers {
                     val actualToken = token ?: this@APIClient.token
-                    actualToken?.let { append(HttpHeaders.Authorization, "Bearer ${it.take(10)}...") }
+                    actualToken?.let { append(HttpHeaders.Authorization, "Bearer ${it}") }
                     options?.headers?.forEach { (key, value) -> append(key, value) }
                 }
                 if (method != HttpMethod.Get && body != null) {
@@ -100,7 +100,7 @@ open class APIClient(private val baseURL: String? = API_URL, val token: String? 
     suspend inline fun <reified T> get(
         path: String,
         options: RequestOptions? = null
-    ): ApiResponse<T> {
+    ): T {
         val opts = if (options?.params != null) {
             RequestOptions(
                 params = options.params + options.params,
@@ -110,17 +110,18 @@ open class APIClient(private val baseURL: String? = API_URL, val token: String? 
 
         val response = request(HttpMethod.Get, path, null, options = opts)
         val responseText = response.bodyAsText()
-        return jsonUtil.decodeFromString(responseText)
+        return jsonUtil.decodeFromString(serializer<T>(), responseText)
     }
-    
+
     suspend inline fun <reified T> post(
         path: String,
         payload: Any? = null,
         options: RequestOptions? = null
-    ): ApiResponse<T> {
+    ): T {
+        println("[HTTP] Posting to $path with payload $payload")
         val response = request(HttpMethod.Post, path, null, payload, options)
         val responseText = response.bodyAsText()
-        return jsonUtil.decodeFromString(serializer<ApiResponse<T>>(), responseText)
+        return jsonUtil.decodeFromString(serializer<T>(), responseText)
     }
 
     fun sse(
@@ -160,22 +161,15 @@ open class APIClient(private val baseURL: String? = API_URL, val token: String? 
 open class APIBase(
     protected val baseURL: String = API_URL,
 ) {
-    protected lateinit var httpClient: APIClient
-
-    protected suspend fun init() {
-        if (!::httpClient.isInitialized) {
-            val token = TokenManager.getTokenAsync()
-            println("[HTTP] Initialized with new token")
-            httpClient = APIClient(baseURL, token)
-        }
+    protected suspend fun getClient(): APIClient {
+        return APIClient(baseURL, TokenManager.getTokenAsync())
     }
 
     protected suspend inline fun <reified T> get(
         path: String,
         options: RequestOptions? = null
     ): ApiResponse<T> {
-        init()
-        return httpClient.get(path, options)
+        return getClient().get(path, options)
     }
 
     protected suspend inline fun <reified T> post(
@@ -183,8 +177,7 @@ open class APIBase(
         payload: Any? = null,
         options: RequestOptions? = null
     ): ApiResponse<T> {
-        init()
-        return httpClient.post(path, payload, options)
+        return getClient().post(path, payload, options)
     }
 
     protected suspend fun sse(
@@ -192,7 +185,6 @@ open class APIBase(
         body: Any? = null,
         options: RequestOptions? = null
     ): Flow<ServerSentEvent> {
-        init()
-        return httpClient.sse(path, body, options)
+        return getClient().sse(path, body, options)
     }
 } 

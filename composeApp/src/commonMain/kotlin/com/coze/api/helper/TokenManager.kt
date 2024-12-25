@@ -42,7 +42,7 @@ object TokenManager {
             if (token.isEmpty()) {
                 throw IllegalStateException("Received empty access token from server")
             }
-            println("token: $token")
+            // println("token: $token")
 
             // 返回token和过期时间
             return Pair(token, jwtRsp.expiresIn ?: 900L)

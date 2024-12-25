@@ -3,17 +3,20 @@ package com.coze.api.helper
 import com.coze.api.model.ApiResponse
 import com.coze.api.model.ChatEventType
 import io.ktor.client.*
+import io.ktor.client.call.*
 import io.ktor.client.plugins.contentnegotiation.*
 import io.ktor.client.plugins.logging.*
+import io.ktor.client.plugins.sse.SSE
+import io.ktor.client.plugins.sse.sse
 import io.ktor.client.request.*
+import io.ktor.client.request.forms.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
-import io.ktor.serialization.kotlinx.json.json
-import kotlinx.serialization.json.Json
-import io.ktor.client.plugins.sse.*
+import io.ktor.serialization.kotlinx.json.*
 import io.ktor.sse.ServerSentEvent
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
+import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.serializer
 
@@ -77,11 +80,23 @@ open class APIClient(private val baseURL: String? = API_URL, val token: String? 
                     options?.headers?.forEach { (key, value) -> append(key, value) }
                 }
                 if (method != HttpMethod.Get && body != null) {
-                    contentType(ContentType.Application.Json)
                     when (body) {
-                        is String -> setBody(body)
-                        is JsonObject -> setBody(jsonUtil.encodeToString(JsonObject.serializer(), body))
-                        else -> setBody(body)
+                        is MultiPartFormDataContent -> {
+                            contentType(ContentType.MultiPart.FormData)
+                            setBody(body)
+                        }
+                        is String -> {
+                            contentType(ContentType.Text.Plain)
+                            setBody(body)
+                        }
+                        is JsonObject -> {
+                            contentType(ContentType.Application.Json)
+                            setBody(jsonUtil.encodeToString(JsonObject.serializer(), body))
+                        }
+                        else -> {
+                            contentType(ContentType.Application.Json)
+                            setBody(body)
+                        }
                     }
                 }
             }
@@ -89,7 +104,7 @@ open class APIClient(private val baseURL: String? = API_URL, val token: String? 
             if (response.status != HttpStatusCode.OK) {
                 println("[HTTP] Error response: ${response.bodyAsText()}")
             }
-            
+
             response
         } catch (e: Exception) {
             println("[HTTP] Request failed: ${e.message}")

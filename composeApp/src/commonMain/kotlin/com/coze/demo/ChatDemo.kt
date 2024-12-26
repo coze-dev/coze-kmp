@@ -2,12 +2,13 @@ package com.coze.demo
 
 import com.coze.api.chat.ChatService
 import com.coze.api.chat.MessageService
-import com.coze.api.model.ChatEventType
+import com.coze.api.model.EventType
 import com.coze.api.model.ChatStatus
 import com.coze.api.model.ChatV3Message
 import com.coze.api.model.EnterMessage
 import com.coze.api.model.MessageType
 import com.coze.api.model.RoleType
+import com.coze.api.model.StreamChatData
 import com.coze.api.model.chat.*
 import com.coze.api.model.conversation.ListMessageReq
 import kotlinx.coroutines.Dispatchers
@@ -55,7 +56,7 @@ class ChatDemo {
         
         // Collect events from the stream and emit them
         streamFlow.collect { event ->
-            if (event is ChatMessageEvent && event.event == ChatEventType.CONVERSATION_MESSAGE_DELTA) {
+            if (event is StreamChatData.ChatMessageEvent && event.event == EventType.CONVERSATION_MESSAGE_DELTA) {
                 emit(event.data.content ?: " ")
             }
         }
@@ -86,8 +87,7 @@ class ChatDemo {
         }
     }
 
-    // 获取消息详情
-// 列出聊天消息
+    // 列出聊天消息
     suspend fun listChatMessages(
         conversationId: String,
         chatId: String,

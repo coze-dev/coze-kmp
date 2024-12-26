@@ -4,15 +4,20 @@ import com.coze.api.helper.APIBase
 import com.coze.api.helper.RequestOptions
 import com.coze.api.model.chat.*
 import com.coze.api.model.ApiResponse
-import com.coze.api.model.ChatEventType
+import com.coze.api.model.EventType
 import com.coze.api.model.ChatStatus
 import com.coze.api.model.ChatV3Message
 import com.coze.api.model.EnterMessage
+import com.coze.api.model.StreamChatData
+import com.coze.api.model.sseEvent2ChatData
 import kotlinx.coroutines.delay
 import kotlinx.datetime.Clock
 import kotlin.random.Random
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
+
+const val POLL_INTERVAL: Long = 1000
+const val POLL_TIMEOUT: Long = 60000
 
 fun generateUUID(): String = 
     (Random.nextDouble() * Clock.System.now().toEpochMilliseconds()).toString()
@@ -47,22 +52,20 @@ class ChatService : APIBase() {
             payload = payload,
             options = options
         )
-        println("response: $response")
         val chatId = response.data?.id ?: throw Exception("创建聊天失败：返回数据为空")
         val conversationId = response.data.conversationId
         var chat: CreateChatData?
 
         val startTime = Clock.System.now()
-        val timeout = 60000 
         while (true) {
-            delay(500)
+            delay(POLL_INTERVAL)
             chat = retrieveChat(conversationId, chatId).data
             if (chat != null) {
                 if (chat.status in listOf(ChatStatus.COMPLETED, ChatStatus.FAILED, ChatStatus.REQUIRES_ACTION)) {
                     break
                 }
             }
-            if (Clock.System.now().toEpochMilliseconds() - startTime.toEpochMilliseconds() > timeout) {
+            if (Clock.System.now().toEpochMilliseconds() - startTime.toEpochMilliseconds() > POLL_TIMEOUT) {
                 throw Exception("轮询超时")
             }
         }
@@ -129,7 +132,7 @@ class ChatService : APIBase() {
             val chatData = sseEvent2ChatData(event)
             emit(chatData)
             // If event is "[DONE]", end
-            if (chatData.event == ChatEventType.DONE) {
+            if (chatData.event == EventType.DONE) {
                 println("SSE DONE.")
                 return@collect
             }

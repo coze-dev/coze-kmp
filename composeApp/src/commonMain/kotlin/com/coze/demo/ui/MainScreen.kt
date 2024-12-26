@@ -190,6 +190,26 @@ fun MainScreen() {
                     selectedContentColor = MaterialTheme.colors.primary,
                     unselectedContentColor = MaterialTheme.colors.onSurface.copy(alpha = 0.6f)
                 )
+                BottomNavigationItem(
+                    selected = selectedTab == 4,
+                    onClick = { selectedTab = 4 },
+                    icon = { 
+                        Text(
+                            "⚡️",
+                            fontSize = 20.sp,
+                            color = Color.Unspecified.copy(alpha = if (selectedTab == 4) 1f else 0.6f)
+                        ) 
+                    },
+                    label = {
+                        Text(
+                            "工作流",
+                            fontSize = 12.sp,
+                            fontWeight = if (selectedTab == 4) FontWeight.Bold else FontWeight.Normal
+                        )
+                    },
+                    selectedContentColor = MaterialTheme.colors.primary,
+                    unselectedContentColor = MaterialTheme.colors.onSurface.copy(alpha = 0.6f)
+                )
             }
         }
     ) { paddingValues ->
@@ -222,7 +242,7 @@ fun MainScreen() {
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             Text(
-                                "✅",
+                                "🔑",
                                 fontSize = 20.sp
                             )
                             Column {
@@ -255,6 +275,7 @@ fun MainScreen() {
                     1 -> ConversationScreen()
                     2 -> BotScreen()
                     3 -> FileScreen()
+                    4 -> WorkflowScreen()
                 }
             }
         }

@@ -1,7 +1,7 @@
 package com.coze.api.helper
 
 import com.coze.api.model.ApiResponse
-import com.coze.api.model.ChatEventType
+import com.coze.api.model.EventType
 import io.ktor.client.*
 import io.ktor.client.call.*
 import io.ktor.client.plugins.contentnegotiation.*
@@ -102,7 +102,7 @@ open class APIClient(private val baseURL: String? = API_URL, val token: String? 
             }
             
             if (response.status != HttpStatusCode.OK) {
-                println("[HTTP] Error response: ${response.bodyAsText()}")
+                println("[HTTP] Error response: ${response.status} - ${response.bodyAsText()}")
             }
 
             response
@@ -161,9 +161,9 @@ open class APIClient(private val baseURL: String? = API_URL, val token: String? 
             var shouldContinue = true
             while (shouldContinue) {
                 incoming.collect { event ->
-                    val eventType = event.event?.let { ChatEventType.fromValue(it) }
+                    val eventType = event.event?.let { EventType.fromValue(it) }
                     emit(event)
-                    if (eventType == ChatEventType.DONE) {
+                    if (eventType == EventType.DONE || eventType == EventType.WORKFLOW_DONE) {
                         shouldContinue = false
                         return@collect
                     }
@@ -192,7 +192,9 @@ open class APIBase(
         payload: Any? = null,
         options: RequestOptions? = null
     ): ApiResponse<T> {
-        return getClient().post(path, payload, options)
+        val response = getClient().post<ApiResponse<T>>(path, payload, options)
+        println("Response: $response")
+        return response
     }
 
     protected suspend fun sse(

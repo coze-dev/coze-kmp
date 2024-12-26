@@ -12,6 +12,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.coze.demo.AuthDemo
+import com.coze.demo.WorkspaceDemo
 import com.coze.demo.ui.components.ErrorMessage
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -210,6 +211,26 @@ fun MainScreen() {
                     selectedContentColor = MaterialTheme.colors.primary,
                     unselectedContentColor = MaterialTheme.colors.onSurface.copy(alpha = 0.6f)
                 )
+                BottomNavigationItem(
+                    selected = selectedTab == 5,
+                    onClick = { selectedTab = 5 },
+                    icon = { 
+                        Text(
+                            "🏢",
+                            fontSize = 20.sp,
+                            color = Color.Unspecified.copy(alpha = if (selectedTab == 5) 1f else 0.6f)
+                        ) 
+                    },
+                    label = {
+                        Text(
+                            "工作空间",
+                            fontSize = 12.sp,
+                            fontWeight = if (selectedTab == 5) FontWeight.Bold else FontWeight.Normal
+                        )
+                    },
+                    selectedContentColor = MaterialTheme.colors.primary,
+                    unselectedContentColor = MaterialTheme.colors.onSurface.copy(alpha = 0.6f)
+                )
             }
         }
     ) { paddingValues ->
@@ -262,20 +283,24 @@ fun MainScreen() {
                         }
                     }
                 }
-            }
 
-            // 主内容区域
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(top = if (errorMessage != null || showAuthResult) 100.dp else 0.dp)
-            ) {
+                // 主内容区域
                 when (selectedTab) {
                     0 -> ChatScreen()
                     1 -> ConversationScreen()
                     2 -> BotScreen()
                     3 -> FileScreen()
                     4 -> WorkflowScreen()
+                    5 -> {
+                        val workspaceDemo = remember { WorkspaceDemo() }
+                        WorkspaceScreen(
+                            workspaceService = workspaceDemo.workspaceService,
+                            onWorkspaceSelected = { workspace ->
+                                // 处理工作空间选择
+                                println("Selected workspace: ${workspace.name}")
+                            }
+                        )
+                    }
                 }
             }
         }

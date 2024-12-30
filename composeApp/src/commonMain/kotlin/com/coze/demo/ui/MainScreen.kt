@@ -14,12 +14,24 @@ import androidx.compose.ui.unit.sp
 import com.coze.demo.AuthDemo
 import com.coze.demo.WorkspaceDemo
 import com.coze.demo.ui.components.ErrorMessage
+import com.coze.demo.ui.dataset.DatasetScreen
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
+private enum class NavigationTab(val icon: String, val label: String) {
+    Chat("💌", "聊天对话"),
+    Bot("🤖", "机器人"),
+    Workflow("⚡️", "工作流"),
+    Dataset("📚", "数据集"),
+    Space("🏢", "其它"),
+//    Template("🌐", "模板")
+}
+
 @Composable
 fun MainScreen() {
-    var selectedTab by remember { mutableStateOf(0) }
+    var selectedTab by remember { mutableStateOf(NavigationTab.Chat) }
+    var selectedChatTab by remember { mutableStateOf(0) }
+    var selectedSpaceTab by remember { mutableStateOf(0) }
     
     // Auth 状态
     val authDemo = remember { AuthDemo }
@@ -117,120 +129,28 @@ fun MainScreen() {
                 backgroundColor = MaterialTheme.colors.surface,
                 elevation = 16.dp,
             ) {
-                BottomNavigationItem(
-                    selected = selectedTab == 0,
-                    onClick = { selectedTab = 0 },
-                    icon = { Text("💌", fontSize = 20.sp, color = Color.Unspecified.copy(alpha = if (selectedTab == 0) 1f else 0.6f)) },
-                    label = {
-                        Text(
-                            "聊天",
-                            fontSize = 12.sp,
-                            fontWeight = if (selectedTab == 0) FontWeight.Bold else FontWeight.Normal
-                        )
-                    },
-                    selectedContentColor = MaterialTheme.colors.primary,
-                    unselectedContentColor = MaterialTheme.colors.onSurface.copy(alpha = 0.6f)
-                )
-                BottomNavigationItem(
-                    selected = selectedTab == 1,
-                    onClick = { selectedTab = 1 },
-                    icon = { 
-                        Text(
-                            "🗣️",
-                            fontSize = 20.sp,
-                            color = Color.Unspecified.copy(alpha = if (selectedTab == 1) 1f else 0.6f)
-                        ) 
-                    },
-                    label = {
-                        Text(
-                            "对话",
-                            fontSize = 12.sp,
-                            fontWeight = if (selectedTab == 1) FontWeight.Bold else FontWeight.Normal
-                        )
-                    },
-                    selectedContentColor = MaterialTheme.colors.primary,
-                    unselectedContentColor = MaterialTheme.colors.onSurface.copy(alpha = 0.6f)
-                )
-                BottomNavigationItem(
-                    selected = selectedTab == 2,
-                    onClick = { selectedTab = 2 },
-                    icon = { 
-                        Text(
-                            "🤖",
-                            fontSize = 20.sp,
-                            color = Color.Unspecified.copy(alpha = if (selectedTab == 2) 1f else 0.6f)
-                        ) 
-                    },
-                    label = {
-                        Text(
-                            "机器人",
-                            fontSize = 12.sp,
-                            fontWeight = if (selectedTab == 2) FontWeight.Bold else FontWeight.Normal
-                        )
-                    },
-                    selectedContentColor = MaterialTheme.colors.primary,
-                    unselectedContentColor = MaterialTheme.colors.onSurface.copy(alpha = 0.6f)
-                )
-                BottomNavigationItem(
-                    selected = selectedTab == 3,
-                    onClick = { selectedTab = 3 },
-                    icon = { 
-                        Text(
-                            "📁",
-                            fontSize = 20.sp,
-                            color = Color.Unspecified.copy(alpha = if (selectedTab == 3) 1f else 0.6f)
-                        ) 
-                    },
-                    label = {
-                        Text(
-                            "文件",
-                            fontSize = 12.sp,
-                            fontWeight = if (selectedTab == 3) FontWeight.Bold else FontWeight.Normal
-                        )
-                    },
-                    selectedContentColor = MaterialTheme.colors.primary,
-                    unselectedContentColor = MaterialTheme.colors.onSurface.copy(alpha = 0.6f)
-                )
-                BottomNavigationItem(
-                    selected = selectedTab == 4,
-                    onClick = { selectedTab = 4 },
-                    icon = { 
-                        Text(
-                            "⚡️",
-                            fontSize = 20.sp,
-                            color = Color.Unspecified.copy(alpha = if (selectedTab == 4) 1f else 0.6f)
-                        ) 
-                    },
-                    label = {
-                        Text(
-                            "工作流",
-                            fontSize = 12.sp,
-                            fontWeight = if (selectedTab == 4) FontWeight.Bold else FontWeight.Normal
-                        )
-                    },
-                    selectedContentColor = MaterialTheme.colors.primary,
-                    unselectedContentColor = MaterialTheme.colors.onSurface.copy(alpha = 0.6f)
-                )
-                BottomNavigationItem(
-                    selected = selectedTab == 5,
-                    onClick = { selectedTab = 5 },
-                    icon = { 
-                        Text(
-                            "🏢",
-                            fontSize = 20.sp,
-                            color = Color.Unspecified.copy(alpha = if (selectedTab == 5) 1f else 0.6f)
-                        ) 
-                    },
-                    label = {
-                        Text(
-                            "工作空间",
-                            fontSize = 12.sp,
-                            fontWeight = if (selectedTab == 5) FontWeight.Bold else FontWeight.Normal
-                        )
-                    },
-                    selectedContentColor = MaterialTheme.colors.primary,
-                    unselectedContentColor = MaterialTheme.colors.onSurface.copy(alpha = 0.6f)
-                )
+                NavigationTab.values().forEach { tab ->
+                    BottomNavigationItem(
+                        selected = selectedTab == tab,
+                        onClick = { selectedTab = tab },
+                        icon = { 
+                            Text(
+                                tab.icon,
+                                fontSize = 20.sp,
+                                color = Color.Unspecified.copy(alpha = if (selectedTab == tab) 1f else 0.6f)
+                            ) 
+                        },
+                        label = {
+                            Text(
+                                tab.label,
+                                fontSize = 12.sp,
+                                fontWeight = if (selectedTab == tab) FontWeight.Bold else FontWeight.Normal
+                            )
+                        },
+                        selectedContentColor = MaterialTheme.colors.primary,
+                        unselectedContentColor = MaterialTheme.colors.onSurface.copy(alpha = 0.6f)
+                    )
+                }
             }
         }
     ) { paddingValues ->
@@ -286,21 +206,74 @@ fun MainScreen() {
 
                 // 主内容区域
                 when (selectedTab) {
-                    0 -> ChatScreen()
-                    1 -> ConversationScreen()
-                    2 -> BotScreen()
-                    3 -> FileScreen()
-                    4 -> WorkflowScreen()
-                    5 -> {
+                    NavigationTab.Chat -> {
+                        Column {
+                            TabRow(
+                                selectedTabIndex = selectedChatTab,
+                                backgroundColor = MaterialTheme.colors.surface,
+                                contentColor = MaterialTheme.colors.primary
+                            ) {
+                                Tab(
+                                    selected = selectedChatTab == 0,
+                                    onClick = { selectedChatTab = 0 },
+                                    text = { Text("聊天") }
+                                )
+                                Tab(
+                                    selected = selectedChatTab == 1,
+                                    onClick = { selectedChatTab = 1 },
+                                    text = { Text("会话") }
+                                )
+                            }
+                            when (selectedChatTab) {
+                                0 -> ChatScreen()
+                                1 -> ConversationScreen()
+                            }
+                        }
+                    }
+                    NavigationTab.Bot -> BotScreen()
+                    NavigationTab.Workflow -> WorkflowScreen()
+                    NavigationTab.Space -> {
+                        Column {
+                            TabRow(
+                                selectedTabIndex = selectedSpaceTab,
+                                backgroundColor = MaterialTheme.colors.surface,
+                                contentColor = MaterialTheme.colors.primary
+                            ) {
+                                Tab(
+                                    selected = selectedSpaceTab == 0,
+                                    onClick = { selectedSpaceTab = 0 },
+                                    text = { Text("工作空间") }
+                                )
+                                Tab(
+                                    selected = selectedSpaceTab == 1,
+                                    onClick = { selectedSpaceTab = 1 },
+                                    text = { Text("文件") }
+                                )
+                            }
+                            when (selectedSpaceTab) {
+                                0 -> {
+                                    val workspaceDemo = remember { WorkspaceDemo() }
+                                    WorkspaceScreen(
+                                        workspaceService = workspaceDemo.workspaceService,
+                                        onWorkspaceSelected = { workspace ->
+                                            println("Selected workspace: ${workspace.name}")
+                                        }
+                                    )
+                                }
+                                1 -> FileScreen()
+                            }
+                        }
+                    }
+                    NavigationTab.Dataset -> {
                         val workspaceDemo = remember { WorkspaceDemo() }
-                        WorkspaceScreen(
+                        DatasetScreen(
                             workspaceService = workspaceDemo.workspaceService,
                             onWorkspaceSelected = { workspace ->
-                                // 处理工作空间选择
-                                println("Selected workspace: ${workspace.name}")
+                                println("Selected workspace for dataset: ${workspace.name}")
                             }
                         )
                     }
+//                    NavigationTab.Template -> WebViewScreen("https://www.coze.cn/template/project/7451809368615632923")
                 }
             }
         }

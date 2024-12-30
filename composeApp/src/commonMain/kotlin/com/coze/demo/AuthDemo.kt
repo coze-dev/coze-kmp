@@ -13,7 +13,7 @@ object AuthDemo {
     suspend fun getJWTAuth(): String? {
         return try {
             val token = TokenManager.getTokenAsync()
-            println("[AuthDemo] Successfully obtained token")
+            println("[AuthDemo] Successfully obtained token $token")
             token
         } catch (e: Exception) {
             println("[AuthDemo] JWT authentication failed: ${e.message}")

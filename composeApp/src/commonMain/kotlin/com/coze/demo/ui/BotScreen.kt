@@ -5,12 +5,19 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.shape.RoundedCornerShape
 import com.coze.api.model.bot.BotInfo
+import com.coze.api.model.bot.SimpleBot
 import com.coze.demo.BotDemo
 import com.coze.demo.ui.components.ErrorMessage
 import kotlinx.coroutines.launch
+
+private val cardShape = RoundedCornerShape(4.dp)
+private val buttonShape = RoundedCornerShape(4.dp)
+private val itemShape = RoundedCornerShape(2.dp)
 
 @Composable
 fun BotScreen() {
@@ -30,6 +37,8 @@ fun BotScreen() {
     var isListBotsLoading by remember { mutableStateOf(false) }
     var isGetBotLoading by remember { mutableStateOf(false) }
     var isPublishBotLoading by remember { mutableStateOf(false) }
+
+    var botList by remember { mutableStateOf<List<SimpleBot>>(emptyList()) }
 
     Column(
         modifier = Modifier
@@ -53,7 +62,7 @@ fun BotScreen() {
                 .padding(bottom = 16.dp),
             elevation = 4.dp,
             backgroundColor = MaterialTheme.colors.surface,
-            shape = MaterialTheme.shapes.medium
+            shape = cardShape
         ) {
             Column(
                 modifier = Modifier.padding(16.dp),
@@ -132,7 +141,7 @@ fun BotScreen() {
             modifier = Modifier.fillMaxWidth(),
             elevation = 4.dp,
             backgroundColor = MaterialTheme.colors.surface,
-            shape = MaterialTheme.shapes.medium
+            shape = cardShape
         ) {
             Column(
                 modifier = Modifier.padding(16.dp),
@@ -168,20 +177,12 @@ fun BotScreen() {
                                     if (bots.spaceBots.isNotEmpty()) {
                                         botId = bots.spaceBots.first().botId
                                     }
-                                    botResult = buildString {
-                                        appendLine("[Bot 列表]")
-                                        bots.spaceBots.forEach { bot ->
-                                            appendLine("ID: ${bot.botId}")
-                                            appendLine("名称: ${bot.botName}")
-                                            appendLine("描述: ${bot.description ?: "N/A"}")
-                                            appendLine("---")
-                                        }
-                                    }
+                                    botList = bots.spaceBots
                                     errorMessage = null
                                 } catch (e: Exception) {
                                     println("[Error] List bots failed: ${e.message}")
                                     errorMessage = e.message
-                                    botResult = "获取 Bot 列表失败：${e.message}"
+                                    botList = emptyList()
                                 } finally {
                                     isListBotsLoading = false
                                 }
@@ -189,7 +190,7 @@ fun BotScreen() {
                         },
                         enabled = !isListBotsLoading,
                         modifier = Modifier.weight(1f),
-                        shape = MaterialTheme.shapes.small,
+                        shape = buttonShape,
                         colors = ButtonDefaults.buttonColors(
                             backgroundColor = MaterialTheme.colors.primary,
                             contentColor = MaterialTheme.colors.onPrimary,
@@ -221,8 +222,7 @@ fun BotScreen() {
                                             appendLine("ID: ${botInfo?.botId}")
                                             appendLine("名称: ${botInfo?.name}")
                                             appendLine("描述: ${botInfo?.description ?: "N/A"}")
-                                            appendLine("创建时间: ${botInfo?.createTime ?: "N/A"}")
-                                            appendLine("更新时间: ${botInfo?.updateTime ?: "N/A"}")
+                                            appendLine("版本: ${botInfo?.version ?: "N/A"}")
                                         }
                                     }
                                     errorMessage = null
@@ -238,7 +238,7 @@ fun BotScreen() {
                         },
                         enabled = !isGetBotLoading && botId.isNotEmpty(),
                         modifier = Modifier.weight(1f),
-                        shape = MaterialTheme.shapes.small,
+                        shape = buttonShape,
                         colors = ButtonDefaults.buttonColors(
                             backgroundColor = MaterialTheme.colors.primary,
                             contentColor = MaterialTheme.colors.onPrimary,
@@ -275,7 +275,7 @@ fun BotScreen() {
                         },
                         enabled = !isPublishBotLoading && botId.isNotEmpty(),
                         modifier = Modifier.weight(1f),
-                        shape = MaterialTheme.shapes.small,
+                        shape = buttonShape,
                         colors = ButtonDefaults.buttonColors(
                             backgroundColor = MaterialTheme.colors.primary,
                             contentColor = MaterialTheme.colors.onPrimary,
@@ -293,6 +293,60 @@ fun BotScreen() {
                         }
                     }
                 }
+
+                if (botList.isNotEmpty()) {
+                    Text(
+                        "共 ${botList.size} 条记录",
+                        style = MaterialTheme.typography.caption,
+                        color = MaterialTheme.colors.primary
+                    )
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        botList.forEach { bot ->
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                elevation = 2.dp,
+                                shape = itemShape,
+                                backgroundColor = MaterialTheme.colors.surface
+                            ) {
+                                Column(
+                                    modifier = Modifier.padding(12.dp),
+                                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            bot.botName,
+                                            style = MaterialTheme.typography.subtitle1,
+                                            color = MaterialTheme.colors.primary
+                                        )
+                                        Text(
+                                            "ID: ${bot.botId}",
+                                            style = MaterialTheme.typography.caption,
+                                            color = MaterialTheme.colors.onSurface.copy(alpha = 0.6f)
+                                        )
+                                    }
+                                    if (bot.description.isNotEmpty()) {
+                                        Text(
+                                            bot.description,
+                                            style = MaterialTheme.typography.body2,
+                                            color = MaterialTheme.colors.onSurface.copy(alpha = 0.8f)
+                                        )
+                                    }
+                                    Text(
+                                        "发布时间: ${bot.publishTime}",
+                                        style = MaterialTheme.typography.caption,
+                                        color = MaterialTheme.colors.onSurface.copy(alpha = 0.6f)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
 
@@ -304,7 +358,7 @@ fun BotScreen() {
                     .padding(top = 16.dp),
                 elevation = 4.dp,
                 backgroundColor = MaterialTheme.colors.surface,
-                shape = MaterialTheme.shapes.medium
+                shape = cardShape
             ) {
                 Column(
                     modifier = Modifier.padding(16.dp),

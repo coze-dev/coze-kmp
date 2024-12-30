@@ -3,7 +3,6 @@ package com.coze.api.helper
 import com.coze.api.model.ApiResponse
 import com.coze.api.model.EventType
 import io.ktor.client.*
-import io.ktor.client.call.*
 import io.ktor.client.plugins.contentnegotiation.*
 import io.ktor.client.plugins.logging.*
 import io.ktor.client.plugins.sse.SSE
@@ -125,6 +124,7 @@ open class APIClient(private val baseURL: String? = API_URL, val token: String? 
 
         val response = request(HttpMethod.Get, path, null, options = opts)
         val responseText = response.bodyAsText()
+        println("[HTTP] Raw Response: $responseText")
         return jsonUtil.decodeFromString(serializer<T>(), responseText)
     }
 
@@ -135,6 +135,29 @@ open class APIClient(private val baseURL: String? = API_URL, val token: String? 
     ): T {
         println("[HTTP] Posting to $path with payload $payload")
         val response = request(HttpMethod.Post, path, null, payload, options)
+        val responseText = response.bodyAsText()
+        println("[HTTP] Raw Response: $responseText")
+        return jsonUtil.decodeFromString(serializer<T>(), responseText)
+    }
+
+    suspend inline fun <reified T> put(
+        path: String,
+        payload: Any? = null,
+        options: RequestOptions? = null
+    ): T {
+        println("[HTTP] Putting to $path with payload $payload")
+        val response = request(HttpMethod.Put, path, null, payload, options)
+        val responseText = response.bodyAsText()
+        return jsonUtil.decodeFromString(serializer<T>(), responseText)
+    }
+
+    suspend inline fun <reified T> delete(
+        path: String,
+        payload: Any? = null,
+        options: RequestOptions? = null
+    ): T {
+        println("[HTTP] Deleting from $path with payload $payload")
+        val response = request(HttpMethod.Delete, path, null, payload, options)
         val responseText = response.bodyAsText()
         return jsonUtil.decodeFromString(serializer<T>(), responseText)
     }
@@ -195,6 +218,22 @@ open class APIBase(
         val response = getClient().post<ApiResponse<T>>(path, payload, options)
         println("Response: $response")
         return response
+    }
+
+    protected suspend inline fun <reified T> put(
+        path: String,
+        payload: Any? = null,
+        options: RequestOptions? = null
+    ): ApiResponse<T> {
+        return getClient().put(path, payload, options)
+    }
+
+    protected suspend inline fun <reified T> _delete(
+        path: String,
+        payload: Any? = null,
+        options: RequestOptions? = null
+    ): ApiResponse<T> {
+        return getClient().delete(path, payload, options)
     }
 
     protected suspend fun sse(

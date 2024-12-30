@@ -3,6 +3,7 @@ package com.coze.demo.ui
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -116,7 +117,8 @@ fun WorkspaceScreen(
         Card(
             modifier = Modifier.fillMaxWidth().weight(1f),
             elevation = 4.dp,
-            backgroundColor = MaterialTheme.colors.surface
+            backgroundColor = MaterialTheme.colors.surface,
+            shape = RoundedCornerShape(4.dp)
         ) {
             Box(modifier = Modifier.fillMaxSize()) {
                 when {
@@ -163,7 +165,8 @@ private fun WorkspaceItem(
             .fillMaxWidth()
             .height(72.dp),
         elevation = 2.dp,
-        onClick = onClick
+        onClick = onClick,
+        shape = RoundedCornerShape(2.dp)
     ) {
         Row(
             modifier = Modifier

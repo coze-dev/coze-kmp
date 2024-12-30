@@ -104,5 +104,6 @@ android {
 
 dependencies {
     debugImplementation(compose.uiTooling)
+    implementation(libs.accompanist.webview)
 }
 

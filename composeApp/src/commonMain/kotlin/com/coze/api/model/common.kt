@@ -50,6 +50,8 @@ enum class MessageType {
     TOOL_RESPONSE,
     @SerialName("follow_up")
     FOLLOW_UP,
+    @SerialName("knowledge")
+    KNOWLEDGE,
     @SerialName("verbose")
     VERBOSE
 }
@@ -131,7 +133,7 @@ data class ChatV3Message(
     @SerialName("conversation_id")
     val conversationId: String,
     @SerialName("bot_id")
-    val botId: String,
+    val botId: String? = null,
     @SerialName("chat_id")
     val chatId: String? = null,
     @SerialName("meta_data")

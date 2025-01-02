@@ -10,11 +10,11 @@ object TokenManager {
     private var _token: String? = null
     private var tokenExpireTime: Long = 0
 
-    suspend fun getTokenAsync(): String {
+    suspend fun getTokenAsync(forceRefresh: Boolean = false): String {
         val now = Clock.System.now().epochSeconds
         
         // 如果token不存在或已过期（提前30秒认为过期），重新获取
-        if (_token == null || now >= tokenExpireTime - 30) {
+        if (_token == null || now >= tokenExpireTime - 30 || forceRefresh) {
             val (token, expireIn) = generateToken()
             _token = token
             // 根据返回的过期时间设置
@@ -42,8 +42,6 @@ object TokenManager {
             if (token.isEmpty()) {
                 throw IllegalStateException("Received empty access token from server")
             }
-            // println("token: $token")
-
             // 返回token和过期时间
             return Pair(token, jwtRsp.expiresIn ?: 900L)
         } catch (e: Exception) {

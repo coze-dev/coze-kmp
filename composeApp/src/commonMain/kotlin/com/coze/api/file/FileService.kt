@@ -7,8 +7,6 @@ import com.coze.api.model.file.CreateFileReq
 import com.coze.api.model.file.FileObject
 import io.ktor.client.request.forms.*
 import io.ktor.http.*
-import io.ktor.utils.io.*
-import io.ktor.utils.io.core.*
 
 class FileService : APIBase() {
     /**
@@ -34,9 +32,9 @@ class FileService : APIBase() {
             }
         )
         
-        println("[DEBUG] 文件大小: ${params.file.size} bytes")
-        println("[DEBUG] 文件名: ${params.fileName}")
-        println("[DEBUG] MIME类型: ${params.mimeType}")
+        // println("[DEBUG] 文件大小: ${params.file.size} bytes")
+        // println("[DEBUG] 文件名: ${params.fileName}")
+        // println("[DEBUG] MIME类型: ${params.mimeType}")
         
         val requestOptions = options?.copy(
             headers = mapOf(

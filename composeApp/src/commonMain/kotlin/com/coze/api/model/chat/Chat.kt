@@ -19,7 +19,7 @@ data class CreateChatData(
     @SerialName("conversation_id")
     val conversationId: String,
     @SerialName("bot_id")
-    val botId: String,
+    val botId: String?=null,
     val status: ChatStatus? = null,
     @SerialName("created_at")
     val createdAt: Long? = null,

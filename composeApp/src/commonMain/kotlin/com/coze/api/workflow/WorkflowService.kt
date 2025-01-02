@@ -3,7 +3,13 @@ package com.coze.api.workflow
 import com.coze.api.helper.APIBase
 import com.coze.api.helper.RequestOptions
 import com.coze.api.model.ApiResponse
+import com.coze.api.model.ChatFlowData
+import com.coze.api.model.StreamChatData
+import com.coze.api.model.WorkflowEventDone
+import com.coze.api.model.WorkflowEventMessage
 import com.coze.api.model.WorkflowStreamData
+import com.coze.api.model.sseEvent2ChatData
+import com.coze.api.model.sseEvent2ChatFlowData
 import com.coze.api.model.sseEvent2WorkflowData
 import com.coze.api.model.workflow.*
 import io.ktor.sse.ServerSentEvent
@@ -42,7 +48,17 @@ class WorkflowService : APIBase() {
             eventFlow = sse("/v1/workflow/stream_run", payload, options ?: RequestOptions())
             eventFlow.collect { event ->
                 val workflowData = sseEvent2WorkflowData(event)
-                emit(workflowData)
+                when (workflowData) {
+                    is WorkflowStreamData.ErrorEvent -> {
+                        println("[Workflow] Error: ${workflowData.data.errorCode}: ${workflowData.data.errorMessage}")
+                        throw Exception("Workflow error: ${workflowData.data.errorMessage}")
+                    }
+                    is WorkflowStreamData.CommonErrorEvent -> {
+                        println("[Workflow] Error: ${workflowData.data.code}: ${workflowData.data.msg}")
+                        throw Exception("Workflow error: ${workflowData.data.msg}")
+                    }
+                    else -> emit(workflowData)
+                }
                 if (workflowData is WorkflowStreamData.DoneEvent) {
                     return@collect
                 }
@@ -73,6 +89,64 @@ class WorkflowService : APIBase() {
         } catch (e: Exception) {
             println("[Workflow] Resume failed: ${e.message}")
             throw e
+        }
+    }
+
+    /**
+     * ChatFlow 
+     */
+    fun chat(
+        params: ChatWorkflowReq,
+        options: RequestOptions? = null
+    ): Flow<ChatFlowData> = flow {
+        var eventFlow: Flow<ServerSentEvent>? = null
+        try {
+            eventFlow = sse("/v1/workflows/chat", params, options ?: RequestOptions())
+            eventFlow.collect { event ->
+                val flowData = sseEvent2ChatFlowData(event)
+                println("[Workflow] Flow data: $flowData")
+                when (flowData) {
+                    is ChatFlowData.WorkflowEvent -> {
+                        when (val workflowData = flowData.data) {
+                            is WorkflowStreamData.ErrorEvent -> {
+                                println("[Workflow] Error: ${workflowData.data.errorCode}: ${workflowData.data.errorMessage}")
+                                throw Exception("Workflow error: ${workflowData.data.errorMessage}")
+                            }
+                            is WorkflowStreamData.CommonErrorEvent -> {
+                                println("[Workflow] Error: ${workflowData.data.code}: ${workflowData.data.msg}")
+                                throw Exception("Workflow error: ${workflowData.data.msg}")
+                            }
+                            else -> emit(flowData)
+                        }
+                    }
+                    is ChatFlowData.ChatEvent -> {
+                        when (val chatData = flowData.data) {
+                            is StreamChatData.ErrorEvent -> {
+                                println("[Workflow] Chat Error: ${chatData.data.code}: ${chatData.data.msg}")
+                                throw Exception("Workflow chat error: ${chatData.data.msg}")
+                            }
+                            else -> emit(flowData)
+                        }
+                    }
+                }
+                
+                // 检查是否完成
+                if ((flowData is ChatFlowData.ChatEvent && flowData.data is StreamChatData.DoneEvent) || 
+                    (flowData is ChatFlowData.WorkflowEvent && flowData.data is WorkflowStreamData.DoneEvent)) {
+                    return@collect
+                }
+            }
+        } catch (e: Exception) {
+            if (e !is CancellationException) {
+                println("[Workflow] Chat stream error: ${e.message}")
+                throw e
+            }
+        } finally {
+            try {
+                (eventFlow as? AutoCloseable)?.close()
+            } catch (e: Exception) {
+                println("[Workflow] Failed to close chat stream: ${e.message}")
+            }
         }
     }
 } 

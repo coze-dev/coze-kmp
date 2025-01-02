@@ -75,7 +75,7 @@ class ChatService : APIBase() {
         return CreateChatPollData(nonNullChat, messageList)
     }
 
-    suspend fun retrieveChat(
+    private suspend fun retrieveChat(
         conversationId: String, 
         chatId: String, 
         options: RequestOptions? = null
@@ -114,6 +114,40 @@ class ChatService : APIBase() {
 
     private fun handleAdditionalMessages(additionalMessages: List<EnterMessage>?): List<EnterMessage>? {
         return additionalMessages?.map { it.copy(content = it.content ?: "") }
+    }
+
+    suspend fun submitToolOutputs(
+        params: SubmitToolOutputsReq,
+        options: RequestOptions? = null
+    ): ApiResponse<CreateChatData> {
+        val apiUrl = "/v3/chat/submit_tool_outputs?conversation_id=${params.conversationId}&chat_id=${params.chatId}"
+        val payload = mapOf(
+            "tool_outputs" to params.toolOutputs,
+            "stream" to false
+        )
+        return post(apiUrl, payload, options)
+    }
+
+    suspend fun submitToolOutputsStream(
+        params: SubmitToolOutputsReq,
+        options: RequestOptions? = null
+    ): Flow<StreamChatData> = flow {
+        val apiUrl = "/v3/chat/submit_tool_outputs?conversation_id=${params.conversationId}&chat_id=${params.chatId}"
+        val payload = mapOf(
+            "tool_outputs" to params.toolOutputs,
+            "stream" to true
+        )
+
+        val eventFlow = sse(apiUrl, payload, options ?: RequestOptions())
+        eventFlow.collect { event ->
+            val chatData = sseEvent2ChatData(event)
+            emit(chatData)
+            // If event is "[DONE]", end
+            if (chatData.event == EventType.DONE) {
+                println("SSE DONE.")
+                return@collect
+            }
+        }
     }
 
     fun stream(

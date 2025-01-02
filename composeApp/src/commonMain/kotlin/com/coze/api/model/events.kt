@@ -105,6 +105,9 @@ sealed class WorkflowStreamData : BaseStreamData() {
     data class DoneEvent(val data: WorkflowEventDone) : WorkflowStreamData() {
         override val event = EventType.WORKFLOW_DONE
     }
+    data class CommonErrorEvent(val data: ErrorData) : WorkflowStreamData() {
+        override val event = EventType.ERROR
+    }
 }
 
 @Serializable
@@ -163,6 +166,11 @@ fun sseEvent2WorkflowData(event: ServerSentEvent): WorkflowStreamData {
             val data = Json.decodeFromString<WorkflowEventDone>(eventData)
             WorkflowStreamData.DoneEvent(data)
         }
+        EventType.ERROR -> {
+            val data = Json.decodeFromString<ErrorData>(eventData)
+            WorkflowStreamData.CommonErrorEvent(data)
+        }
+
         else -> throw IllegalArgumentException("Unexpected event type for workflow: $eventType")
     }
 }
@@ -225,5 +233,32 @@ fun sseEvent2ChatData(event: ServerSentEvent): StreamChatData {
         }
         EventType.DONE -> StreamChatData.DoneEvent()
         else -> throw IllegalArgumentException("Unsupported event type: $eventType")
+    }
+}
+
+@Serializable
+sealed class ChatFlowData : BaseStreamData() {
+    data class WorkflowEvent(val data: WorkflowStreamData) : ChatFlowData() {
+        override val event = data.event
+    }
+    
+    data class ChatEvent(val data: StreamChatData) : ChatFlowData() {
+        override val event = data.event
+    }
+}
+
+fun chatData2FlowData(chatData: StreamChatData): ChatFlowData {
+    return ChatFlowData.ChatEvent(chatData)
+}
+
+fun workflowData2FlowData(workflowData: WorkflowStreamData): ChatFlowData {
+    return ChatFlowData.WorkflowEvent(workflowData)
+}
+
+fun sseEvent2ChatFlowData(event: ServerSentEvent): ChatFlowData {
+    return try {
+        workflowData2FlowData(sseEvent2WorkflowData(event))
+    } catch (e: IllegalArgumentException) {
+        chatData2FlowData(sseEvent2ChatData(event))
     }
 }

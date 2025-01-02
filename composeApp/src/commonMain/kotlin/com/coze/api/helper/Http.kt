@@ -1,7 +1,9 @@
 package com.coze.api.helper
 
 import com.coze.api.model.ApiResponse
+import com.coze.api.model.AuthenticationError
 import com.coze.api.model.EventType
+import com.coze.api.model.workflow.ChatWorkflowReq
 import io.ktor.client.*
 import io.ktor.client.plugins.contentnegotiation.*
 import io.ktor.client.plugins.logging.*
@@ -15,6 +17,7 @@ import io.ktor.serialization.kotlinx.json.*
 import io.ktor.sse.ServerSentEvent
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.isActive
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.serializer
@@ -124,7 +127,7 @@ open class APIClient(private val baseURL: String? = API_URL, val token: String? 
 
         val response = request(HttpMethod.Get, path, null, options = opts)
         val responseText = response.bodyAsText()
-        println("[HTTP] Raw Response: $responseText")
+        // println("[HTTP] Raw Response: $responseText")
         return jsonUtil.decodeFromString(serializer<T>(), responseText)
     }
 
@@ -136,7 +139,7 @@ open class APIClient(private val baseURL: String? = API_URL, val token: String? 
         println("[HTTP] Posting to $path with payload $payload")
         val response = request(HttpMethod.Post, path, null, payload, options)
         val responseText = response.bodyAsText()
-        println("[HTTP] Raw Response: $responseText")
+        // println("[HTTP] Raw Response: $responseText")
         return jsonUtil.decodeFromString(serializer<T>(), responseText)
     }
 
@@ -167,6 +170,7 @@ open class APIClient(private val baseURL: String? = API_URL, val token: String? 
         body: Any? = null,
         options: RequestOptions? = null
     ): Flow<ServerSentEvent> = flow {
+        println("[HTTP] SSE posting to $path with payload $body")
         client.sse(baseURL + path, {
             method = HttpMethod.Post
             token?.let { 
@@ -179,18 +183,54 @@ open class APIClient(private val baseURL: String? = API_URL, val token: String? 
                 header(key, value)
             }
             contentType(ContentType.Application.Json)
-            body?.let { setBody(it) }
+            when (body) {
+                is ChatWorkflowReq -> {
+                    val serializedBody = jsonUtil.encodeToString(ChatWorkflowReq.serializer(), body)
+                    println("[HTTP] SSE request body: $serializedBody")
+                    setBody(jsonUtil.encodeToString(ChatWorkflowReq.serializer(), body))
+                }
+            }
+            body?.let { 
+                setBody(it) 
+            }
         }) {
             var shouldContinue = true
-            while (shouldContinue) {
-                incoming.collect { event ->
-                    val eventType = event.event?.let { EventType.fromValue(it) }
-                    emit(event)
-                    if (eventType == EventType.DONE || eventType == EventType.WORKFLOW_DONE) {
-                        shouldContinue = false
-                        return@collect
+            var eventCount = 0
+            val maxEvents = 500 // 最大事件数限制
+            
+            while (shouldContinue && eventCount < maxEvents) {
+                try {
+                    incoming.collect { event ->
+                        if (!isActive) {
+                            println("[HTTP] SSE connection is no longer active")
+                            shouldContinue = false
+                            return@collect
+                        }
+                        
+                        eventCount++
+                        println("[HTTP] SSE event ($eventCount/$maxEvents): $event")
+                        val eventType = event.event?.let { EventType.fromValue(it) }
+                        // 如果 event.event 是 EventType.ERROR，则打印 msg 然后结束
+                        if (eventType == EventType.ERROR) {
+                            shouldContinue = false
+                            return@collect
+                        }
+                        emit(event)
+                        if (eventType == EventType.DONE || eventType == EventType.WORKFLOW_DONE) {
+                            shouldContinue = false
+                            return@collect
+                        }
                     }
+                } catch (e: Exception) {
+                    println("[HTTP] SSE connection error: ${e.message}")
+                    shouldContinue = false
+                    throw e
                 }
+            }
+            
+            if (eventCount >= maxEvents) {
+                println("[HTTP] SSE reached maximum event limit ($maxEvents)")
+                throw Exception("SSE reached maximum event limit")
             }
         }
     }
@@ -200,7 +240,22 @@ open class APIBase(
     protected val baseURL: String = API_URL,
 ) {
     protected suspend fun getClient(): APIClient {
-        return APIClient(baseURL, TokenManager.getTokenAsync())
+        var retryCount = 0
+        val maxRetries = 1
+        
+        while (true) {
+            println("[HTTP] Getting client with token")
+            try {
+                return APIClient(baseURL, TokenManager.getTokenAsync(true))
+            } catch (e: Exception) {
+                if (e is AuthenticationError && retryCount < maxRetries) {
+                    println("[HTTP] Token fetch failed (attempt ${retryCount + 1}): ${e.message}")
+                    retryCount++
+                    continue
+                }
+                throw e
+            }
+        }
     }
 
     protected suspend inline fun <reified T> get(
@@ -216,7 +271,7 @@ open class APIBase(
         options: RequestOptions? = null
     ): ApiResponse<T> {
         val response = getClient().post<ApiResponse<T>>(path, payload, options)
-        println("Response: $response")
+        // println("Response: $response")
         return response
     }
 

@@ -1,5 +1,6 @@
 package com.coze.api.model.workflow
 
+import com.coze.api.model.EnterMessage
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonElement
@@ -40,4 +41,18 @@ data class ResumeWorkflowReq(
     val resumeData: String,
     @SerialName("interrupt_type")
     val interruptType: Int
+)
+
+@Serializable
+data class ChatWorkflowReq(
+    @SerialName("workflow_id")
+    val workflowId: String,
+    @SerialName("bot_id")
+    val botId: String? = null,
+    val parameters: Map<String, JsonElement>? = null,
+    @SerialName("additional_messages")
+    val additionalMessages: List<EnterMessage>,
+    val ext: Map<String, String>? = null,
+    @SerialName("app_id")
+    val appId: String? = null,
 )

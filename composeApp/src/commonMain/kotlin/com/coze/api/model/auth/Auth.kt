@@ -20,7 +20,7 @@ data class GetTokenData(
     @SerialName("token_type")
     val tokenType: String,
     @SerialName("expires_in")
-    val expiresIn: Int
+    val expiresIn: Long
 )
 
 @Serializable
@@ -58,4 +58,18 @@ data class JWTTokenConfig(
     val baseURL: String? = null,
     val durationSeconds: Int? = 900,
     val scope: String? = null
+)
+
+@Serializable
+data class JWTResponse(
+    val code: Int,
+    val data: GetTokenData? = null,
+    val message: String? = null
+)
+
+@Serializable
+data class GetJWTTokenRequest(
+    val appId: String,
+    val keyId: String,
+    val privateKey: String
 )

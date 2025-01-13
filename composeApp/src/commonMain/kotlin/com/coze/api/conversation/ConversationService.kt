@@ -18,6 +18,7 @@ class ConversationService : APIBase() {
      * @return Information about the created conversation
      */
     suspend fun create(request: CreateConversationReq, options: RequestOptions? = null): ApiResponse<Conversation> {
+        require(!request.botId.isNullOrBlank()) { "botId cannot be empty" }
         return post("/v1/conversation/create", request, options)
     }
 
@@ -30,6 +31,7 @@ class ConversationService : APIBase() {
      * @return Information about the conversation
      */
     suspend fun retrieve(conversationId: String, options: RequestOptions? = null): ApiResponse<Conversation> {
+        require(conversationId.isNotBlank()) { "conversationId cannot be empty" }
         val params = mapOf(
             "conversation_id" to conversationId,
         )
@@ -46,6 +48,7 @@ class ConversationService : APIBase() {
      * @return Information about the conversations
      */
     suspend fun list(request: ListConversationReq, options: RequestOptions? = null): ApiResponse<ListConversationsData> {
+        require(request.botId.isNotBlank()) { "botId cannot be empty" }
         val params = mapOf(
             "bot_id" to request.botId,
             "page_num" to (request.pageNum ?: 1).toString(),
@@ -64,6 +67,7 @@ class ConversationService : APIBase() {
      * @return Information about the conversation session
      */
     suspend fun clear(conversationId: String, options: RequestOptions? = null): ApiResponse<ConversationSession> {
+        require(conversationId.isNotBlank()) { "conversationId cannot be empty" }
         return post("/v1/conversations/$conversationId/clear", null, options)
     }
 } 

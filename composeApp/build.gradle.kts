@@ -1,3 +1,4 @@
+import com.vanniktech.maven.publish.SonatypeHost
 import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
@@ -10,6 +11,7 @@ plugins {
     kotlin("plugin.serialization") version "2.0.0"
     // ios plugins
     id("co.touchlab.skie") version "0.9.5"
+    id("com.vanniktech.maven.publish") version "0.30.0"
 }
 
 kotlin {
@@ -19,10 +21,9 @@ kotlin {
             jvmTarget.set(JvmTarget.JVM_11)
         }
         dependencies {
-            implementation(libs.java.jwt)
         }
     }
-    
+
     listOf(
         iosX64(),
         iosArm64(),
@@ -33,7 +34,7 @@ kotlin {
             isStatic = true
         }
     }
-    
+
     sourceSets {
         commonMain.dependencies {
             implementation(compose.runtime)
@@ -54,14 +55,13 @@ kotlin {
             implementation(libs.ktor.client.content.negotiation)
             implementation(libs.ktor.serialization.kotlinx.json)
             implementation(libs.ktor.client.logging)
-            implementation(libs.ktor.client.cio)
-
         }
         androidMain.dependencies {
             implementation(compose.preview)
             implementation(libs.androidx.activity.compose)
             // android client
             implementation(libs.ktor.client.android)
+            implementation(libs.ktor.client.cio)
 
             implementation(libs.androidx.lifecycle.viewmodel.ktx)
             implementation(libs.lifecycle.runtime.compose)
@@ -70,8 +70,15 @@ kotlin {
         iosMain.dependencies {
             // ios client
             implementation(libs.ktor.client.darwin)
+            api(libs.kotlinx.coroutines.core)
+            api(libs.ktor.client.core)
+            api(libs.kotlinx.datetime)
         }
-
+        commonTest.dependencies {
+            implementation(libs.kotlin.test)
+            implementation(libs.ktor.client.mock)
+            implementation(libs.kotlinx.coroutines.test)
+        }
     }
 }
 
@@ -107,3 +114,36 @@ dependencies {
     implementation(libs.accompanist.webview)
 }
 
+mavenPublishing {
+    publishToMavenCentral(SonatypeHost.CENTRAL_PORTAL)
+
+    signAllPublications()
+
+    coordinates(group.toString(), "Coze Kotlin SDK", version.toString())
+
+    pom {
+        name = "Coze API Android Library"
+        description = "An android library for Coze API written in Kotlin."
+        inceptionYear = "2025"
+        url = "https://github.com/coze-dev/coze-kmp/"
+        licenses {
+            license {
+                name = "The Apache License, Version 2.0"
+                url = "https://www.apache.org/licenses/LICENSE-2.0.txt"
+                distribution = "https://www.apache.org/licenses/LICENSE-2.0.txt"
+            }
+        }
+        developers {
+            developer {
+                id = "jsongo@qq.com"
+                name = "lingyibin"
+                url = "https://www.coze.com/"
+            }
+        }
+        scm {
+            url = "https://github.com/coze-dev/coze-kmp/"
+            connection = "scm:git:git://github.com/coze-dev/coze-kmp.git"
+            developerConnection = "scm:git:ssh://git@github.com/coze-dev/coze-kmp.git"
+        }
+    }
+}

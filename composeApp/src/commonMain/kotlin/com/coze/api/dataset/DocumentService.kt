@@ -25,6 +25,11 @@ class DocumentService : APIBase() {
         chunkStrategy: DocumentChunkStrategy? = DocumentChunkStrategy.buildAuto(),
         formatType: DocumentFormatType = DocumentFormatType.DOCUMENT
     ): ApiResponse<List<Document>> {
+        require(datasetId.isNotBlank()) { "datasetId cannot be empty" }
+        require(documentBases.isNotEmpty()) { "documentBases cannot be empty" }
+        require(documentBases.size <= 10) { "documentBases size cannot be greater than 10" }
+        require(documentBases.all { it.name.isNotBlank() }) { "document name cannot be empty" }
+        
         val payload = CreateDocumentRequest(
             datasetId = datasetId,
             documentBases = documentBases,
@@ -57,6 +62,9 @@ class DocumentService : APIBase() {
         documentName: String? = null,
         updateRule: DocumentUpdateRule? = null
     ): ApiResponse<Unit> {
+        require(documentId.isNotBlank()) { "documentId cannot be empty" }
+        require(documentName?.isNotBlank() != false) { "documentName cannot be empty if provided" }
+        
         return post(
             "/open_api/knowledge/document/update", 
             UpdateDocumentRequest(
@@ -76,6 +84,10 @@ class DocumentService : APIBase() {
     suspend fun delete(
         documentIds: List<String>
     ): ApiResponse<Unit> {
+        require(documentIds.isNotEmpty()) { "documentIds cannot be empty" }
+        require(documentIds.size <= 100) { "documentIds size cannot be greater than 100" }
+        require(documentIds.all { it.isNotBlank() }) { "documentIds cannot contain empty strings" }
+        
         return post(
             "/open_api/knowledge/document/delete", 
             DeleteDocumentRequest(documentIds = documentIds),
@@ -95,6 +107,10 @@ class DocumentService : APIBase() {
         pageNum: Int = 1,
         pageSize: Int = 10
     ): ApiResponse<List<Document>> {
+        require(datasetId.isNotBlank()) { "datasetId cannot be empty" }
+        require(pageNum >= 1) { "pageNum must be greater than or equal to 1" }
+        require(pageSize >= 1) { "pageSize must be greater than or equal to 1" }
+        
         val response = getClient().post<DocumentListResponse>(
             "/open_api/knowledge/document/list", 
             DocumentListRequest(

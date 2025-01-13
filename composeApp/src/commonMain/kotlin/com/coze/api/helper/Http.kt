@@ -3,12 +3,11 @@ package com.coze.api.helper
 import com.coze.api.model.ApiResponse
 import com.coze.api.model.AuthenticationError
 import com.coze.api.model.EventType
-import com.coze.api.model.workflow.ChatWorkflowReq
 import io.ktor.client.*
+import io.ktor.client.engine.*
 import io.ktor.client.plugins.contentnegotiation.*
 import io.ktor.client.plugins.logging.*
-import io.ktor.client.plugins.sse.SSE
-import io.ktor.client.plugins.sse.sse
+import io.ktor.client.plugins.sse.*
 import io.ktor.client.request.*
 import io.ktor.client.request.forms.*
 import io.ktor.client.statement.*
@@ -24,12 +23,18 @@ import kotlinx.serialization.serializer
 
 const val API_URL = "https://api.coze.com"
 
+expect fun createPlatformEngine(): HttpClientEngine
+
 data class RequestOptions(
     val headers: Map<String, String> = emptyMap(),
     val params: Map<String, String> = emptyMap()
 )
 
-open class APIClient(private val baseURL: String? = API_URL, val token: String? = null) {
+open class APIClient(
+    private val baseURL: String? = API_URL,
+    val token: String? = null,
+    private val client: HttpClient? = null,
+) {
     val jsonUtil = Json {
         prettyPrint = true
         isLenient = true
@@ -38,18 +43,23 @@ open class APIClient(private val baseURL: String? = API_URL, val token: String? 
         explicitNulls = false
         coerceInputValues = true
     }
-
-    private val client = HttpClient {
-        install(ContentNegotiation) {
-            json(jsonUtil)
+    
+    private val defaultClient by lazy {
+        HttpClient(createPlatformEngine()) {
+            install(ContentNegotiation) {
+                json(jsonUtil)
+            }
+            install(Logging) {
+                logger = Logger.DEFAULT
+                level = LogLevel.INFO
+                sanitizeHeader { header -> header == HttpHeaders.Authorization }
+            }
+            install(SSE)
         }
-        install(Logging) {
-            logger = Logger.DEFAULT
-            level = LogLevel.INFO
-            sanitizeHeader { header -> header == HttpHeaders.Authorization }
-        }
-        install(SSE)
     }
+
+    var httpClient: HttpClient = client ?: defaultClient
+        private set
 
     suspend fun request(
         method: HttpMethod,
@@ -74,7 +84,7 @@ open class APIClient(private val baseURL: String? = API_URL, val token: String? 
         println("[HTTP] Request URL: $url")
 
         return try {
-            val response = client.request(url) {
+            val response = httpClient.request(url) {
                 this.method = method
                 headers {
                     val actualToken = token ?: this@APIClient.token
@@ -127,7 +137,6 @@ open class APIClient(private val baseURL: String? = API_URL, val token: String? 
 
         val response = request(HttpMethod.Get, path, null, options = opts)
         val responseText = response.bodyAsText()
-        // println("[HTTP] Raw Response: $responseText")
         return jsonUtil.decodeFromString(serializer<T>(), responseText)
     }
 
@@ -139,7 +148,6 @@ open class APIClient(private val baseURL: String? = API_URL, val token: String? 
         println("[HTTP] Posting to $path with payload $payload")
         val response = request(HttpMethod.Post, path, null, payload, options)
         val responseText = response.bodyAsText()
-        // println("[HTTP] Raw Response: $responseText")
         return jsonUtil.decodeFromString(serializer<T>(), responseText)
     }
 
@@ -171,7 +179,7 @@ open class APIClient(private val baseURL: String? = API_URL, val token: String? 
         options: RequestOptions? = null
     ): Flow<ServerSentEvent> = flow {
         println("[HTTP] SSE posting to $path with payload $body")
-        client.sse(baseURL + path, {
+        httpClient.sse(baseURL + path, {
             method = HttpMethod.Post
             token?.let { 
                 header("Authorization", "Bearer $it")
@@ -183,13 +191,6 @@ open class APIClient(private val baseURL: String? = API_URL, val token: String? 
                 header(key, value)
             }
             contentType(ContentType.Application.Json)
-            when (body) {
-                is ChatWorkflowReq -> {
-                    val serializedBody = jsonUtil.encodeToString(ChatWorkflowReq.serializer(), body)
-                    println("[HTTP] SSE request body: $serializedBody")
-                    setBody(jsonUtil.encodeToString(ChatWorkflowReq.serializer(), body))
-                }
-            }
             body?.let { 
                 setBody(it) 
             }
@@ -234,19 +235,69 @@ open class APIClient(private val baseURL: String? = API_URL, val token: String? 
             }
         }
     }
+
+    fun createHttpClient(engine: HttpClientEngine): HttpClient {
+        return HttpClient(engine) {
+            install(ContentNegotiation) {
+                json(jsonUtil)
+            }
+            install(Logging) {
+                logger = Logger.DEFAULT
+                level = LogLevel.INFO
+                sanitizeHeader { header -> header == HttpHeaders.Authorization }
+            }
+            install(SSE)
+        }
+    }
 }
 
 open class APIBase(
     protected val baseURL: String = API_URL,
 ) {
+    private var httpClient: HttpClient? = null
+    private var apiClient: APIClient? = null
+
+    internal fun setHttpClient(client: HttpClient) {
+        httpClient = client
+        apiClient = APIClient(baseURL, null, client)
+    }
+
+    internal fun setClient(engine: HttpClientEngine) {
+        val client = HttpClient(engine) {
+            install(ContentNegotiation) {
+                json(Json {
+                    prettyPrint = true
+                    isLenient = true
+                    ignoreUnknownKeys = true
+                    encodeDefaults = true
+                    explicitNulls = false
+                    coerceInputValues = true
+                })
+            }
+            install(Logging) {
+                logger = Logger.DEFAULT
+                level = LogLevel.INFO
+                sanitizeHeader { header -> header == HttpHeaders.Authorization }
+            }
+            install(SSE)
+        }
+        setHttpClient(client)
+    }
+
     protected suspend fun getClient(): APIClient {
+        if (httpClient != null && apiClient != null) {
+            return apiClient!!
+        }
+        
         var retryCount = 0
         val maxRetries = 1
         
         while (true) {
             println("[HTTP] Getting client with token")
             try {
-                return APIClient(baseURL, TokenManager.getTokenAsync(true))
+                val token = TokenManager.getTokenAsync(true)
+                apiClient = APIClient(baseURL, token, httpClient)
+                return apiClient!!
             } catch (e: Exception) {
                 if (e is AuthenticationError && retryCount < maxRetries) {
                     println("[HTTP] Token fetch failed (attempt ${retryCount + 1}): ${e.message}")
@@ -271,7 +322,6 @@ open class APIBase(
         options: RequestOptions? = null
     ): ApiResponse<T> {
         val response = getClient().post<ApiResponse<T>>(path, payload, options)
-        // println("Response: $response")
         return response
     }
 

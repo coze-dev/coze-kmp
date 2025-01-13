@@ -73,42 +73,47 @@ class WorkflowDemo {
                 )
             )
             
-            val result = workflowService.create(req)
-            
-            if (useStream) {
-                workflowService.stream(req)
-                    .catch { e -> 
-                        if (e !is CancellationException) {
-                            onError(e.message ?: "Unknown error")
-                        }
-                    }
-                    .onCompletion { cause ->
-                        if (cause == null) {
-                            onComplete()
-                        }
-                    }
-                    .collect { event ->
-                        when (event) {
-                            is WorkflowStreamData.MessageEvent -> {
-                                val message = event.data
-                                if (message.nodeTitle.isNotEmpty()) {
-                                    onMessage("[${message.nodeTitle}] ${message.content}")
-                                } else {
-                                    onMessage(message.content)
-                                }
-                            }
-                            is WorkflowStreamData.InterruptEvent -> {
-                                onInterrupt(event.data)
-                            }
-                            is WorkflowStreamData.DoneEvent -> {
-                                onMessage("[Done] Debug URL: ${event.data.debugUrl}")
-                            }
-                            else -> {} // 错误已在 WorkflowService 中处理
-                        }
-                    }
-            } else {
+            if (!useStream) {
+                val result = workflowService.create(req)
+                onMessage("[Non-Stream] Workflow execution result:")
+                onMessage("- Data: ${result.data}")
+                onMessage("- Cost: ${result.cost}")
+                onMessage("- Token: ${result.token}")
+                onMessage("- Debug URL: ${result.debugUrl}")
                 onComplete()
+                return
             }
+            
+            workflowService.stream(req)
+                .catch { e -> 
+                    if (e !is CancellationException) {
+                        onError(e.message ?: "Unknown error")
+                    }
+                }
+                .onCompletion { cause ->
+                    if (cause == null) {
+                        onComplete()
+                    }
+                }
+                .collect { event ->
+                    when (event) {
+                        is WorkflowStreamData.MessageEvent -> {
+                            val message = event.data
+                            if (message.nodeTitle.isNotEmpty()) {
+                                onMessage("[${message.nodeTitle}] ${message.content}")
+                            } else {
+                                onMessage(message.content)
+                            }
+                        }
+                        is WorkflowStreamData.InterruptEvent -> {
+                            onInterrupt(event.data)
+                        }
+                        is WorkflowStreamData.DoneEvent -> {
+                            onMessage("[Done] Debug URL: ${event.data.debugUrl}")
+                        }
+                        else -> {} // 错误已在 WorkflowService 中处理
+                    }
+                }
         } catch (e: Exception) {
             if (e !is CancellationException) {
                 onError("Failed to run workflow: ${e.message}")

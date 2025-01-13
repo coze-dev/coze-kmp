@@ -1,117 +1,72 @@
 package com.coze.api.auth
 
 import com.coze.api.helper.APIClient
-import com.coze.api.helper.RequestOptions
-import com.coze.api.helper.getJWTProvider
-import com.coze.api.helper.isBrowser
-import com.coze.api.model.APIError
-import kotlinx.datetime.Clock
 import com.coze.api.model.auth.*
 import io.ktor.client.statement.bodyAsText
-import io.ktor.http.HttpMethod
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.put
-import kotlinx.serialization.serializer
+import io.ktor.http.*
+import kotlinx.serialization.json.*
 
-// 主要功能函数
+val AuthBaseURL = "https://37rtimftq5x63.ahost.marscode.site"
+
 object AuthService {
-    private suspend fun _getJWTToken(
-        config: Map<String, Any>,
-        options: RequestOptions? = null
-    ): JWTToken {
-        val api = APIClient(token = config["token"] as String, baseURL = config["baseURL"] as? String)
-
-        val payload = buildJsonObject {
-            put("grant_type", "urn:ietf:params:oauth:grant-type:jwt-bearer")
-            put("duration_seconds", (config["durationSeconds"] as? Int ?: 900).toInt())
-            if (config["scope"] != null) {
-                put("scope", config["scope"].toString())
-            }
-        }
-
-        val jsonPayload = Json.encodeToString(JsonObject.serializer(), payload)
-
-        // println("_getJWTToken post payload: $jsonPayload, token: ${config["token"]}")
-        val response = api.request(HttpMethod.Post, "/api/permission/oauth2/token", config["token"] as String, payload, options)
-        return Json.decodeFromString(serializer<JWTToken>(), response.bodyAsText())
-    }
+    private val api = APIClient(baseURL = AuthBaseURL)
 
     suspend fun getJWTToken(
-        config: JWTTokenConfig,
-        options: RequestOptions? = null
-    ): JWTToken {
-        if (isBrowser()) {
-            throw Exception("getJWTToken is not supported in browser")
-        }
+        appId: String,
+        keyId: String,
+        privateKey: String
+    ): GetTokenData? {
+        try {
+            // 参数验证
+            require(appId.isNotBlank()) { "appId cannot be empty" }
+            require(keyId.isNotBlank()) { "keyId cannot be empty" }
+            require(privateKey.isNotBlank()) { "privateKey cannot be empty" }
 
-        // Trim private key and validate format
-        val trimmedPrivateKey = config.privateKey.trim()
-        val keyFormat = when {
-            trimmedPrivateKey.contains("BEGIN RSA PRIVATE KEY") -> "RSA"
-            trimmedPrivateKey.contains("BEGIN PRIVATE KEY") -> "PKCS8"
-            else -> null
-        }
+            // 清理私钥
+            val cleanKey = try {
+                privateKey.trim()
+            } catch (e: Exception) {
+                throw IllegalArgumentException("Failed to clean private key: ${e.message}")
+            }
 
-        if (keyFormat == null) {
-            throw APIError(
-                400,
-                null,
-                "Invalid private key format. Expected PEM format (RSA or PKCS8)"
+            // 准备请求体
+            val requestBody = GetJWTTokenRequest(
+                appId = appId,
+                keyId = keyId,
+                privateKey = cleanKey
             )
-        }
 
-        // 准备JWT payload
-        val now = Clock.System.now().epochSeconds
-        val jwtPayload = buildJsonObject {
-            put("iss", config.appId)
-            put("aud", config.aud)
-            put("iat", now)
-            put("exp", now + 3600) // 1小时
-            put("jti", now.toString(16))
-            if (config.sessionName != null) {
-                put("session_name", config.sessionName)
+            // 发送请求
+            val response = try {
+                api.request(
+                    method = HttpMethod.Post,
+                    path = "/tools/coze/jwt",
+                    token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmdW5jdGlvbmlkIjoiMzdydGltZnRxNXg2MyIsImlhdCI6MTcyNTc1NDk1OCwianRpIjoiNjZkY2VlNGU3OWEwMDI3MTEwYjg1YmQ4IiwidHlwZSI6ImZ1bmN0aW9uIiwidXNlcmlkIjoiQ0xPVURJREVfMWRrbnc5NTFuNXA1dm5fNzQxMjA1ODY0NjcwNzE3NjQ2NSIsInZlcnNpb24iOjJ9.H8d6QRxtWk17FAVAKvucWM__oEIL67ow6ENFM22A64E",
+                    body = requestBody
+                )
+            } catch (e: Exception) {
+                throw Exception("Failed to send request for JWT token: ${e.message}")
             }
-        }
 
-        // 将JsonObject转换为Map
-        val jwtPayloadMap = jwtPayload.toMap()
-
-        // 使用JWT provider签名获取token
-        val token = getJWTProvider().sign(
-            payload = jwtPayloadMap,
-            privateKey = trimmedPrivateKey,
-            algorithm = config.algorithm ?: "RS256",
-            keyid = config.keyId
-        )
-
-        // 交换JWT token获取OAuth token
-        val tokenConfig = buildMap<String, Any> {
-            put("token", token)
-            config.baseURL?.let { put("baseURL", it) }
-            put("durationSeconds", config.durationSeconds ?: 900)
-            config.scope?.let { put("scope", it) }
-        }
-
-        return _getJWTToken(tokenConfig, options)
-    }
-
-    private fun JsonObject.toMap(): Map<String, Any> {
-        return entries.associate { (key, element) ->
-            key to when (element) {
-                is kotlinx.serialization.json.JsonPrimitive -> {
-                    when {
-                        element.isString -> element.content
-                        element.content.toLongOrNull() != null -> element.content.toLong()
-                        element.content.toDoubleOrNull() != null -> element.content.toDouble()
-                        element.content == "true" -> true
-                        element.content == "false" -> false
-                        else -> element.content
-                    }
-                }
-                else -> element.toString()
+            // 解析响应
+            val responseText = response.bodyAsText()
+            
+            val jwtResponse = try {
+                Json.decodeFromString<JWTResponse>(responseText)
+            } catch (e: Exception) {
+                throw Exception("Failed to parse JWT response: ${e.message}, Response: $responseText")
             }
+
+            // 检查响应状态
+            if (jwtResponse.code != 0) {
+                throw IllegalStateException("Failed to get JWT token, server returned code ${jwtResponse.code}: ${jwtResponse.data}")
+            }
+            println("[JWT] Token获取成功, token: ${jwtResponse.data?.accessToken}")
+            return jwtResponse.data
+            
+        } catch (e: Exception) {
+            println("[JWT] 错误: ${e.message}")
+            throw e
         }
     }
 }

@@ -19,7 +19,7 @@ import kotlinx.datetime.Clock
 @Composable
 fun ConversationScreen() {
     val conversationDemo = remember { ConversationDemo() }
-    val messageDemo = remember { MessageDemo() }
+    val messageDemo = remember { com.coze.demo.MessageDemo() }
     val coroutineScope = rememberCoroutineScope()
 
     var conversationId by remember { mutableStateOf("") }

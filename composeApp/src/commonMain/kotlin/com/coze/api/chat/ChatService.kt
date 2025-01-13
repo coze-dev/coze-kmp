@@ -28,6 +28,9 @@ class ChatService : APIBase() {
         params: CreateChatReq, 
         options: RequestOptions? = null
     ): ApiResponse<CreateChatData> {
+        require(params.botId.isNotBlank()) { "botId cannot be empty" }
+        require(!params.additionalMessages.isNullOrEmpty()) { "additionalMessages cannot be empty" }
+        
         params.userId = params.userId.takeUnless { it.isNullOrEmpty() } ?: generateUUID()
         val apiUrl = "/v3/chat${params.conversationId?.let { "?conversation_id=$it" } ?: ""}"
         val payload = params.copy(
@@ -41,6 +44,9 @@ class ChatService : APIBase() {
         params: CreateChatReq, 
         options: RequestOptions? = null
     ): CreateChatPollData {
+        require(params.botId.isNotBlank()) { "botId cannot be empty" }
+        require(!params.additionalMessages.isNullOrEmpty()) { "additionalMessages cannot be empty" }
+        
         params.userId = params.userId.takeUnless { it.isNullOrEmpty() } ?: generateUUID()
         val apiUrl = "/v3/chat${params.conversationId?.let { "?conversation_id=$it" } ?: ""}"
         val payload = params.copy(
@@ -80,6 +86,9 @@ class ChatService : APIBase() {
         chatId: String, 
         options: RequestOptions? = null
     ): ApiResponse<CreateChatData> {
+        require(conversationId.isNotBlank()) { "conversationId cannot be empty" }
+        require(chatId.isNotBlank()) { "chatId cannot be empty" }
+        
         println("retrieving...")
         val apiUrl = "/v3/chat/retrieve?conversation_id=$conversationId&chat_id=$chatId"
         return post<CreateChatData>(
@@ -93,24 +102,31 @@ class ChatService : APIBase() {
         conversationId: String, 
         chatId: String, 
         options: RequestOptions? = null
-    ): ApiResponse<CreateChatData> =
-        post<CreateChatData>("/v3/chat/cancel", mapOf(
+    ): ApiResponse<CreateChatData> {
+        require(conversationId.isNotBlank()) { "conversationId cannot be empty" }
+        require(chatId.isNotBlank()) { "chatId cannot be empty" }
+        
+        return post<CreateChatData>("/v3/chat/cancel", mapOf(
             "conversation_id" to conversationId,
             "chat_id" to chatId
         ), options)
+    }
 
     private suspend fun listMessages(
         conversationId: String, 
         chatId: String,
-        options: RequestOptions? = null
-    ): ApiResponse<List<ChatV3Message>> =
-        get<List<ChatV3Message>>("/v3/chat/message/list", 
+    ): ApiResponse<List<ChatV3Message>> {
+        require(conversationId.isNotBlank()) { "conversationId cannot be empty" }
+        require(chatId.isNotBlank()) { "chatId cannot be empty" }
+        
+        return get<List<ChatV3Message>>("/v3/chat/message/list", 
         RequestOptions(
             params = mapOf(
                 "conversation_id" to conversationId,
                 "chat_id" to chatId
             )
         ))
+    }
 
     private fun handleAdditionalMessages(additionalMessages: List<EnterMessage>?): List<EnterMessage>? {
         return additionalMessages?.map { it.copy(content = it.content ?: "") }
@@ -120,25 +136,24 @@ class ChatService : APIBase() {
         params: SubmitToolOutputsReq,
         options: RequestOptions? = null
     ): ApiResponse<CreateChatData> {
+        require(params.conversationId.isNotBlank()) { "conversationId cannot be empty" }
+        require(params.chatId.isNotBlank()) { "chatId cannot be empty" }
+        require(params.toolOutputs.isNotEmpty()) { "toolOutputs cannot be empty" }
+        
         val apiUrl = "/v3/chat/submit_tool_outputs?conversation_id=${params.conversationId}&chat_id=${params.chatId}"
-        val payload = mapOf(
-            "tool_outputs" to params.toolOutputs,
-            "stream" to false
-        )
-        return post(apiUrl, payload, options)
+        return post(apiUrl, params, options)
     }
 
     suspend fun submitToolOutputsStream(
         params: SubmitToolOutputsReq,
         options: RequestOptions? = null
     ): Flow<StreamChatData> = flow {
+        require(params.conversationId.isNotBlank()) { "conversationId cannot be empty" }
+        require(params.chatId.isNotBlank()) { "chatId cannot be empty" }
+        require(params.toolOutputs.isNotEmpty()) { "toolOutputs cannot be empty" }
+        
         val apiUrl = "/v3/chat/submit_tool_outputs?conversation_id=${params.conversationId}&chat_id=${params.chatId}"
-        val payload = mapOf(
-            "tool_outputs" to params.toolOutputs,
-            "stream" to true
-        )
-
-        val eventFlow = sse(apiUrl, payload, options ?: RequestOptions())
+        val eventFlow = sse(apiUrl, params, options ?: RequestOptions())
         eventFlow.collect { event ->
             val chatData = sseEvent2ChatData(event)
             emit(chatData)
@@ -154,6 +169,9 @@ class ChatService : APIBase() {
         params: StreamChatReq, 
         options: RequestOptions? = null
     ): Flow<StreamChatData> = flow {
+        require(params.botId.isNotBlank()) { "botId cannot be empty" }
+        require(!params.additionalMessages.isNullOrEmpty()) { "additionalMessages cannot be empty" }
+        
         params.userId = params.userId.takeUnless { it.isNullOrEmpty() } ?: generateUUID()
         val apiUrl = "/v3/chat${params.conversationId?.let { "?conversation_id=$it" } ?: ""}"
         val payload = params.copy(

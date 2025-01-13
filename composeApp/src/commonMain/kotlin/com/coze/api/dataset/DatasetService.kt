@@ -41,6 +41,9 @@ class DatasetService : APIBase() {
         description: String? = null,
         iconFileId: String? = null
     ): ApiResponse<CreateDatasetResponse> {
+        require(name.isNotBlank()) { "name cannot be empty" }
+        require(spaceId.isNotBlank()) { "spaceId cannot be empty" }
+        
         return post("/v1/datasets", mapOf(
             "name" to name,
             "space_id" to spaceId,
@@ -66,6 +69,10 @@ class DatasetService : APIBase() {
         pageNum: Int = 1,
         pageSize: Int = 10
     ): ApiResponse<DatasetListResponse> {
+        require(spaceId.isNotBlank()) { "spaceId cannot be empty" }
+        require(pageNum >= 1) { "pageNum must be greater than or equal to 1" }
+        require(pageSize in 1..300) { "pageSize must be between 1 and 300" }
+        
         val params = mutableMapOf(
             "space_id" to spaceId,
             "page_num" to pageNum.toString(),
@@ -92,6 +99,8 @@ class DatasetService : APIBase() {
         description: String? = null,
         iconFileId: String? = null
     ): ApiResponse<Unit> {
+        require(datasetId.isNotBlank()) { "datasetId cannot be empty" }
+        
         // 如果传入的都为null，则不更新
         if (name == null && description == null && iconFileId == null) {
             return ApiResponse(code = 0, msg = "success")
@@ -112,6 +121,8 @@ class DatasetService : APIBase() {
      * @param datasetId 数据集ID
      */
     suspend fun delete(datasetId: String): ApiResponse<Unit> {
+        require(datasetId.isNotBlank()) { "datasetId cannot be empty" }
+        
         return _delete("/v1/datasets/$datasetId")
     }
 
@@ -128,6 +139,10 @@ class DatasetService : APIBase() {
         datasetId: String,
         documentIds: List<String>
     ): ApiResponse<List<DocumentProgress>> {
+        require(datasetId.isNotBlank()) { "datasetId cannot be empty" }
+        require(documentIds.isNotEmpty()) { "documentIds cannot be empty" }
+        require(documentIds.all { it.isNotBlank() }) { "documentIds cannot contain empty strings" }
+        
         val body = mapOf(
             "document_ids" to documentIds
         )

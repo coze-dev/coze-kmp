@@ -25,6 +25,9 @@ class WorkflowService : APIBase() {
         params: RunWorkflowReq,
         options: RequestOptions? = null
     ): RunWorkflowData {
+        // 参数验证
+        require(params.workflowId.isNotBlank()) { "workflowId cannot be empty" }
+
         val payload = params.copy(stream = false)
         try {
             return getClient().post<RunWorkflowData>("/v1/workflow/run", payload, options)
@@ -41,6 +44,9 @@ class WorkflowService : APIBase() {
         params: RunWorkflowReq,
         options: RequestOptions? = null
     ): Flow<WorkflowStreamData> = flow {
+        // 参数验证
+        require(params.workflowId.isNotBlank()) { "workflowId cannot be empty" }
+
         val payload = params.copy(stream = true)
         
         var eventFlow: Flow<ServerSentEvent>? = null
@@ -84,6 +90,10 @@ class WorkflowService : APIBase() {
         params: ResumeWorkflowReq,
         options: RequestOptions? = null
     ): ApiResponse<WorkflowStreamData> {
+        // 参数验证
+        require(params.workflowId.isNotBlank()) { "workflowId cannot be empty" }
+        require(params.eventId.isNotBlank()) { "eventId cannot be empty" }
+
         try {
             return post<WorkflowStreamData>("/v1/workflow/stream_resume", params, options)
         } catch (e: Exception) {
@@ -99,6 +109,10 @@ class WorkflowService : APIBase() {
         params: ChatWorkflowReq,
         options: RequestOptions? = null
     ): Flow<ChatFlowData> = flow {
+        // 参数验证
+        require(params.workflowId.isNotBlank()) { "workflowId cannot be empty" }
+        require(params.additionalMessages.isNotEmpty()) { "additionalMessages cannot be empty" }
+
         var eventFlow: Flow<ServerSentEvent>? = null
         try {
             eventFlow = sse("/v1/workflows/chat", params, options ?: RequestOptions())

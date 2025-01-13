@@ -24,6 +24,10 @@ class ImageService : APIBase() {
         documentId: String,
         caption: String
     ): ApiResponse<Unit> {
+        require(datasetId.isNotBlank()) { "datasetId cannot be empty" }
+        require(documentId.isNotBlank()) { "documentId cannot be empty" }
+        require(caption.isNotBlank()) { "caption cannot be empty" }
+        
         return put("/v1/datasets/$datasetId/images/$documentId", UpdateImageRequest(caption))
     }
 
@@ -44,6 +48,10 @@ class ImageService : APIBase() {
         pageNum: Int = 1,
         pageSize: Int = 10
     ): ApiResponse<PhotoListResponse> {
+        require(datasetId.isNotBlank()) { "datasetId cannot be empty" }
+        require(pageNum >= 1) { "pageNum must be greater than or equal to 1" }
+        require(pageSize in 1..299) { "pageSize must be between 1 and 299" }
+        
         val params = mutableMapOf(
             "page_num" to pageNum.toString(),
             "page_size" to pageSize.toString()

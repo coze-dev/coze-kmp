@@ -22,6 +22,9 @@ class MessageService : APIBase() {
         chatId: String,
         options: RequestOptions? = null
     ): ApiResponse<List<ChatV3Message>> {
+        require(conversationId.isNotBlank()) { "conversationId cannot be empty" }
+        require(chatId.isNotBlank()) { "chatId cannot be empty" }
+        
         val params = mapOf(
             "conversation_id" to conversationId,
             "chat_id" to chatId

@@ -273,7 +273,6 @@ fun MainScreen() {
                             }
                         )
                     }
-//                    NavigationTab.Template -> WebViewScreen("https://www.coze.cn/template/project/7451809368615632923")
                 }
             }
         }

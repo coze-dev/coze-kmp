@@ -4,7 +4,6 @@ import com.coze.api.helper.APIBase
 import com.coze.api.helper.RequestOptions
 import com.coze.api.model.ApiResponse
 import com.coze.api.model.bot.*
-import kotlinx.serialization.Serializable
 
 class BotService : APIBase() {
     /**
@@ -17,6 +16,10 @@ class BotService : APIBase() {
         params: CreateBotReq,
         options: RequestOptions? = null
     ): ApiResponse<CreateBotData> {
+        // 参数验证
+        require(params.spaceId.isNotBlank()) { "spaceId cannot be empty" }
+        require(params.name.isNotBlank()) { "name cannot be empty" }
+
         return post<CreateBotData>("/v1/bot/create", params, options)
     }
 
@@ -29,6 +32,10 @@ class BotService : APIBase() {
         params: UpdateBotReq,
         options: RequestOptions? = null
     ) {
+        // 参数验证
+        require(params.botId.isNotBlank()) { "botId cannot be empty" }
+        require(params.name.isNotBlank()) { "name cannot be empty" }
+
         post<Unit>("/v1/bot/update", params, options)
     }
 
@@ -42,10 +49,13 @@ class BotService : APIBase() {
         params: ListBotReq,
         options: RequestOptions? = null
     ): ApiResponse<ListBotData> {
+        // 参数验证
+        require(params.spaceId.isNotBlank()) { "spaceId cannot be empty" }
+
         val queryParams = mapOf(
             "space_id" to params.spaceId,
-            "page" to params.page.toString(),
-            "page_size" to params.pageSize.toString()
+            "page" to (params.page ?: 1).toString(),
+            "page_size" to (params.pageSize ?: 50).toString()
         )
         val requestOptions = options?.copy(params = queryParams) 
             ?: RequestOptions(params = queryParams)
@@ -61,6 +71,10 @@ class BotService : APIBase() {
         params: PublishBotReq,
         options: RequestOptions? = null
     ): ApiResponse<PublishBotData> {
+        // 参数验证
+        require(params.botId.isNotBlank()) { "botId cannot be empty" }
+        require(params.connectorIds.isNotEmpty()) { "connectorIds cannot be empty" }
+
         return post<PublishBotData>("/v1/bot/publish", params, options)
     }
 
@@ -74,6 +88,9 @@ class BotService : APIBase() {
         params: RetrieveBotReq,
         options: RequestOptions? = null
     ): ApiResponse<BotInfo> {
+        // 参数验证
+        require(params.botId.isNotBlank()) { "botId cannot be empty" }
+
         val queryParams = mapOf(
             "bot_id" to params.botId
         )

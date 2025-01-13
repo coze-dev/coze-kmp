@@ -19,6 +19,10 @@ class FileService : APIBase() {
         params: CreateFileReq,
         options: RequestOptions? = null
     ): ApiResponse<FileObject> {
+        require(params.file.isNotEmpty()) { "file cannot be empty" }
+        require(params.fileName.isNotBlank()) { "fileName cannot be empty" }
+        require(params.mimeType.isNotBlank()) { "mimeType cannot be empty" }
+        
         val formData = MultiPartFormDataContent(
             formData {
                 append(
@@ -31,11 +35,7 @@ class FileService : APIBase() {
                 )
             }
         )
-        
-        // println("[DEBUG] 文件大小: ${params.file.size} bytes")
-        // println("[DEBUG] 文件名: ${params.fileName}")
-        // println("[DEBUG] MIME类型: ${params.mimeType}")
-        
+
         val requestOptions = options?.copy(
             headers = mapOf(
                 HttpHeaders.ContentType to ContentType.MultiPart.FormData.toString()
@@ -61,6 +61,8 @@ class FileService : APIBase() {
         fileId: String,
         options: RequestOptions? = null
     ): ApiResponse<FileObject> {
+        require(fileId.isNotBlank()) { "fileId cannot be empty" }
+        
         val queryParams = mapOf("file_id" to fileId)
         val requestOptions = options?.copy(params = queryParams) 
             ?: RequestOptions(params = queryParams)

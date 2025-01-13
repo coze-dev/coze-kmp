@@ -23,6 +23,8 @@ class MessageService : APIBase() {
         request: CreateMessageReq,
         options: RequestOptions? = null
     ): ApiResponse<ChatV3Message> {
+        // 参数验证
+        require(conversationId.isNotBlank()) { "conversationId cannot be empty" }
         val params = mapOf("conversation_id" to conversationId)
         return post("/v1/conversation/message/create", request, options?.copy(
             params = options.params + params
@@ -44,6 +46,9 @@ class MessageService : APIBase() {
         request: UpdateMessageReq,
         options: RequestOptions? = null
     ): ApiResponse<ChatV3Message> {
+        // 参数验证
+        require(conversationId.isNotBlank()) { "conversationId cannot be empty" }
+        require(messageId.isNotBlank()) { "messageId cannot be empty" }
         val params = mapOf(
             "conversation_id" to conversationId,
             "message_id" to messageId
@@ -66,6 +71,10 @@ class MessageService : APIBase() {
         messageId: String,
         options: RequestOptions? = null
     ): ApiResponse<ChatV3Message> {
+        // 参数验证
+        require(conversationId.isNotBlank()) { "conversationId cannot be empty" }
+        require(messageId.isNotBlank()) { "messageId cannot be empty" }
+
         val params = mapOf(
             "conversation_id" to conversationId,
             "message_id" to messageId
@@ -88,6 +97,9 @@ class MessageService : APIBase() {
         request: ListMessageReq? = null,
         options: RequestOptions? = null
     ): ListMessageData {
+        // 参数验证
+        require(conversationId.isNotBlank()) { "conversationId cannot be empty" }
+
         val params = buildMap {
             put("conversation_id", conversationId)
             request?.order?.let { put("order", it) }
@@ -114,6 +126,10 @@ class MessageService : APIBase() {
         messageId: String,
         options: RequestOptions? = null
     ): ApiResponse<ChatV3Message> {
+        // 参数验证
+        require(conversationId.isNotBlank()) { "conversationId cannot be empty" }
+        require(messageId.isNotBlank()) { "messageId cannot be empty" }
+
         val params = mapOf(
             "conversation_id" to conversationId,
             "message_id" to messageId

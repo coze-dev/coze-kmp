@@ -6,9 +6,16 @@ import com.coze.api.model.ApiResponse
 import com.coze.api.model.workspace.WorkspaceListRequest
 import com.coze.api.model.workspace.WorkspaceListResponse
 
+/**
+ * Workspace Service | 工作空间服务
+ * Handles workspace operations | 处理工作空间操作
+ */
 class WorkspaceService : APIBase() {
     /**
-     * 查看当前扣子用户加入的空间列表
+     * List workspaces for current user | 获取当前用户的工作空间列表
+     * @param req List request parameters | 列表请求参数
+     * @param options Request options | 请求选项
+     * @return WorkspaceListResponse List of workspaces | 工作空间列表
      */
     suspend fun list(
         req: WorkspaceListRequest = WorkspaceListRequest(),
@@ -23,7 +30,6 @@ class WorkspaceService : APIBase() {
                 params = options.params + params
             ) ?: RequestOptions(params = params))
         } catch (e: Exception) {
-            println("[Workspace] List failed: ${e.message}")
             throw e
         }
     }

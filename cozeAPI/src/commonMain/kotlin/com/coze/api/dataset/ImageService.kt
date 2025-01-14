@@ -11,19 +11,23 @@ data class UpdateImageRequest(
     val caption: String
 )
 
+/**
+ * Image Service | 图片服务
+ * Handles image operations in datasets | 处理数据集中的图片操作
+ */
 class ImageService : APIBase() {
     /**
-     * 更新图片描述
-     *
-     * @param datasetId 数据集ID
-     * @param documentId 图片ID
-     * @param caption 图片描述
+     * Update image caption | 更新图片描述
+     * @param datasetId Dataset ID | 数据集ID
+     * @param documentId Image ID | 图片ID
+     * @param caption Image caption | 图片描述
      */
     suspend fun update(
         datasetId: String,
         documentId: String,
         caption: String
     ): ApiResponse<Unit> {
+        // Parameter validation | 参数验证
         require(datasetId.isNotBlank()) { "datasetId cannot be empty" }
         require(documentId.isNotBlank()) { "documentId cannot be empty" }
         require(caption.isNotBlank()) { "caption cannot be empty" }
@@ -32,14 +36,14 @@ class ImageService : APIBase() {
     }
 
     /**
-     * 查看图片知识库中的图片详细信息
-     * 查看图片时，支持通过图片标注进行筛选
-     *
-     * @param datasetId 数据集ID
-     * @param keyword 关键词，用于筛选图片
-     * @param hasCaption 是否有图片描述
-     * @param pageNum 分页查询的页码，默认为1，即从第一页开始返回数据
-     * @param pageSize 分页的大小，默认为10，即每页返回10条数据。取值范围为1~299，默认为10
+     * List images in dataset | 获取数据集中的图片列表
+     * Filter images by caption | 支持通过图片标注进行筛选
+     * @param datasetId Dataset ID | 数据集ID
+     * @param keyword Keyword for filtering | 筛选关键词
+     * @param hasCaption Has caption filter | 是否有图片描述
+     * @param pageNum Page number (default: 1) | 页码（默认：1）
+     * @param pageSize Page size (range: 1-299, default: 10) | 每页大小（范围：1-299，默认：10）
+     * @return PhotoListResponse List of images | 图片列表
      */
     suspend fun list(
         datasetId: String,
@@ -48,6 +52,7 @@ class ImageService : APIBase() {
         pageNum: Int = 1,
         pageSize: Int = 10
     ): ApiResponse<PhotoListResponse> {
+        // Parameter validation | 参数验证
         require(datasetId.isNotBlank()) { "datasetId cannot be empty" }
         require(pageNum >= 1) { "pageNum must be greater than or equal to 1" }
         require(pageSize in 1..299) { "pageSize must be between 1 and 299" }

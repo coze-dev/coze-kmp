@@ -5,6 +5,10 @@ import com.coze.api.helper.RequestOptions
 import com.coze.api.model.ApiResponse
 import com.coze.api.model.dataset.*
 
+/**
+ * Dataset Service | 数据集服务
+ * Handles dataset operations including creation, listing, updating and deletion | 处理数据集操作，包括创建、列表、更新和删除
+ */
 class DatasetService : APIBase() {
     private var _documents: DocumentService? = null
     private var _images: ImageService? = null
@@ -26,13 +30,13 @@ class DatasetService : APIBase() {
         }
 
     /**
-     * 创建数据集
-     *
-     * @param name 数据集名称
-     * @param spaceId 数据集所属的空间ID
-     * @param formatType 数据集类型，0：文本，2：图片
-     * @param description 数据集描述
-     * @param iconFileId 图标文件ID，通过 coze.files.upload 上传
+     * Create a dataset | 创建数据集
+     * @param name Dataset name | 数据集名称
+     * @param spaceId Space ID | 空间ID
+     * @param formatType Dataset type (0: text, 2: image) | 数据集类型（0：文本，2：图片）
+     * @param description Dataset description | 数据集描述
+     * @param iconFileId Icon file ID (upload via coze.files.upload) | 图标文件ID（通过 coze.files.upload 上传）
+     * @return CreateDatasetResponse Created dataset information | 创建的数据集信息
      */
     suspend fun create(
         name: String,
@@ -41,6 +45,7 @@ class DatasetService : APIBase() {
         description: String? = null,
         iconFileId: String? = null
     ): ApiResponse<CreateDatasetResponse> {
+        // Parameter validation | 参数验证
         require(name.isNotBlank()) { "name cannot be empty" }
         require(spaceId.isNotBlank()) { "spaceId cannot be empty" }
         
@@ -54,13 +59,13 @@ class DatasetService : APIBase() {
     }
 
     /**
-     * 查看数据集列表
-     *
-     * @param spaceId 数据集所属的空间ID
-     * @param name 数据集名称，支持模糊搜索
-     * @param formatType 数据集类型，0：文本，1：表格，2：图片
-     * @param pageNum 页码，最小值为1，默认为1
-     * @param pageSize 每页大小，取值范围为1~300，默认为10
+     * List datasets | 获取数据集列表
+     * @param spaceId Space ID | 空间ID
+     * @param name Dataset name (fuzzy search) | 数据集名称（支持模糊搜索）
+     * @param formatType Dataset type (0: text, 1: table, 2: image) | 数据集类型（0：文本，1：表格，2：图片）
+     * @param pageNum Page number (min: 1, default: 1) | 页码（最小值：1，默认：1）
+     * @param pageSize Page size (range: 1-300, default: 10) | 每页大小（范围：1-300，默认：10）
+     * @return DatasetListResponse List of datasets | 数据集列表
      */
     suspend fun list(
         spaceId: String,
@@ -69,6 +74,7 @@ class DatasetService : APIBase() {
         pageNum: Int = 1,
         pageSize: Int = 10
     ): ApiResponse<DatasetListResponse> {
+        // Parameter validation | 参数验证
         require(spaceId.isNotBlank()) { "spaceId cannot be empty" }
         require(pageNum >= 1) { "pageNum must be greater than or equal to 1" }
         require(pageSize in 1..300) { "pageSize must be between 1 and 300" }
@@ -85,13 +91,12 @@ class DatasetService : APIBase() {
     }
 
     /**
-     * 更新数据集
-     * 该接口会全量刷新知识库的 name、file_id、description 设置，如果不设置这些参数，会恢复为默认设置。
-     *
-     * @param datasetId 数据集ID
-     * @param name 数据集名称
-     * @param description 数据集描述
-     * @param iconFileId 图标文件ID，通过 coze.files.upload 上传
+     * Update dataset | 更新数据集
+     * This API will fully refresh the dataset's name, file_id, and description settings | 该接口会全量刷新数据集的 name、file_id、description 设置
+     * @param datasetId Dataset ID | 数据集ID
+     * @param name Dataset name | 数据集名称
+     * @param description Dataset description | 数据集描述
+     * @param iconFileId Icon file ID | 图标文件ID
      */
     suspend fun update(
         datasetId: String,
@@ -99,9 +104,10 @@ class DatasetService : APIBase() {
         description: String? = null,
         iconFileId: String? = null
     ): ApiResponse<Unit> {
+        // Parameter validation | 参数验证
         require(datasetId.isNotBlank()) { "datasetId cannot be empty" }
         
-        // 如果传入的都为null，则不更新
+        // Skip update if all parameters are null | 如果所有参数都为null，则不更新
         if (name == null && description == null && iconFileId == null) {
             return ApiResponse(code = 0, msg = "success")
         }
@@ -114,31 +120,32 @@ class DatasetService : APIBase() {
     }
 
     /**
-     * 删除数据集
-     * 工作空间管理员可以删除团队内的所有知识库，其他成员只能删除自己拥有的知识库。
-     * 删除知识库时，会同时删除上传到该知识库的所有文件，绑定了该知识库的机器人会自动解绑。
-     *
-     * @param datasetId 数据集ID
+     * Delete dataset | 删除数据集
+     * Workspace admins can delete all datasets, others can only delete their own | 工作空间管理员可以删除所有数据集，其他成员只能删除自己的
+     * Deleting a dataset will also delete all its files and unbind related bots | 删除数据集时会同时删除其所有文件并解绑相关机器人
+     * @param datasetId Dataset ID | 数据集ID
      */
     suspend fun delete(datasetId: String): ApiResponse<Unit> {
+        // Parameter validation | 参数验证
         require(datasetId.isNotBlank()) { "datasetId cannot be empty" }
         
         return _delete("/v1/datasets/$datasetId")
     }
 
     /**
-     * 查看上传进度
-     * 调用该接口获取知识库文件的上传进度。
-     * 该接口支持查看所有类型知识库文件的上传进度，例如文本、图片、表格。
-     * 支持批量查看多个文件的进度，但文件必须位于同一个知识库中。
-     *
-     * @param datasetId 数据集ID
-     * @param documentIds 文档ID列表
+     * Check upload progress | 查看上传进度
+     * Get the upload progress of dataset files | 获取数据集文件的上传进度
+     * Supports all file types (text, image, table) | 支持所有文件类型（文本、图片、表格）
+     * Can check multiple files in the same dataset | 可以批量查看同一数据集中的多个文件进度
+     * @param datasetId Dataset ID | 数据集ID
+     * @param documentIds Document ID list | 文档ID列表
+     * @return List<DocumentProgress> Progress information | 进度信息列表
      */
     suspend fun process(
         datasetId: String,
         documentIds: List<String>
     ): ApiResponse<List<DocumentProgress>> {
+        // Parameter validation | 参数验证
         require(datasetId.isNotBlank()) { "datasetId cannot be empty" }
         require(documentIds.isNotEmpty()) { "documentIds cannot be empty" }
         require(documentIds.all { it.isNotBlank() }) { "documentIds cannot contain empty strings" }

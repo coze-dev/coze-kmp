@@ -4,15 +4,19 @@ import com.coze.api.file.FileService
 import com.coze.api.model.file.CreateFileReq
 import com.coze.api.model.file.FileObject
 
+/**
+ * File Demo | 文件演示
+ * Demonstrates file upload and retrieval functionality | 演示文件上传和获取功能
+ */
 class FileDemo {
     private val fileService = FileService()
 
     /**
-     * 上传文件
-     * @param fileName 文件名
-     * @param mimeType 文件类型
-     * @param content 文件内容
-     * @return 上传的文件信息
+     * Upload file | 上传文件
+     * @param fileName File name | 文件名称
+     * @param mimeType MIME type | 文件类型
+     * @param content File content as byte array | 文件内容字节数组
+     * @return FileObject? Uploaded file information | 上传的文件信息
      */
     suspend fun uploadFile(
         fileName: String,
@@ -28,9 +32,9 @@ class FileDemo {
     }
 
     /**
-     * 获取文件信息
-     * @param fileId 文件ID
-     * @return 文件信息
+     * Get file information | 获取文件信息
+     * @param fileId File ID | 文件ID
+     * @return FileObject? File information | 文件信息
      */
     suspend fun getFile(fileId: String): FileObject? {
         return fileService.retrieve(fileId).data

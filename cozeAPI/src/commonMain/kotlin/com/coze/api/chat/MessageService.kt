@@ -6,22 +6,23 @@ import com.coze.api.model.ApiResponse
 import com.coze.api.model.ChatV3Message
 
 /**
- * Service class for managing chat messages
+ * Message Service | 消息服务
+ * Handles chat message operations | 处理聊天消息操作
  */
 class MessageService : APIBase() {
     /**
-     * Get the list of messages in a chat
-     *
-     * @param conversationId The ID of the conversation
-     * @param chatId The ID of the chat
-     * @param options Optional request options
-     * @return An array of chat messages
+     * List messages in a chat | 获取聊天消息列表
+     * @param conversationId Conversation ID | 会话ID
+     * @param chatId Chat ID | 聊天ID
+     * @param options Request options | 请求选项
+     * @return List<ChatV3Message> List of chat messages | 聊天消息列表
      */
     suspend fun list(
         conversationId: String,
         chatId: String,
         options: RequestOptions? = null
     ): ApiResponse<List<ChatV3Message>> {
+        // Parameter validation | 参数验证
         require(conversationId.isNotBlank()) { "conversationId cannot be empty" }
         require(chatId.isNotBlank()) { "chatId cannot be empty" }
         

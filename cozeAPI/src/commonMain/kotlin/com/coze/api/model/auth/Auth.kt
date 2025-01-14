@@ -3,6 +3,17 @@ package com.coze.api.model.auth
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
+
+/**
+ * Token Information | Token信息
+ * @property token Access token | 访问令牌
+ * @property expiresIn Expiration time in seconds | 过期时间（秒）
+ */
+data class TokenInfo(
+    val token: String?,
+    val expiresIn: Long
+) 
+
 @Serializable
 data class GetTokenReq(
     @SerialName("app_id")

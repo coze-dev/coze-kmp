@@ -19,11 +19,25 @@ import kotlinx.coroutines.flow.flow
 const val POLL_INTERVAL: Long = 1000
 const val POLL_TIMEOUT: Long = 60000
 
+/**
+ * Generate UUID for chat identification | 生成用于聊天识别的UUID
+ * @return String Random UUID | 随机UUID字符串
+ */
 fun generateUUID(): String = 
     (Random.nextDouble() * Clock.System.now().toEpochMilliseconds()).toString()
 
+/**
+ * Chat Service | 聊天服务
+ * Handles chat operations including creation, polling, streaming and tool outputs | 处理聊天操作，包括创建、轮询、流式传输和工具输出
+ */
 class ChatService : APIBase() {
 
+    /**
+     * Create a new chat | 创建新的聊天
+     * @param params Chat creation parameters | 聊天创建参数
+     * @param options Request options | 请求选项
+     * @return CreateChatData Chat creation result | 聊天创建结果
+     */
     suspend fun createChat(
         params: CreateChatReq, 
         options: RequestOptions? = null
@@ -40,6 +54,12 @@ class ChatService : APIBase() {
         return post(apiUrl, payload, options)
     }
 
+    /**
+     * Create chat and poll for completion | 创建聊天并轮询完成状态
+     * @param params Chat creation parameters | 聊天创建参数
+     * @param options Request options | 请求选项
+     * @return CreateChatPollData Chat result with messages | 带消息的聊天结果
+     */
     suspend fun createAndPollChat(
         params: CreateChatReq, 
         options: RequestOptions? = null
@@ -81,6 +101,13 @@ class ChatService : APIBase() {
         return CreateChatPollData(nonNullChat, messageList)
     }
 
+    /**
+     * Retrieve chat information | 获取聊天信息
+     * @param conversationId Conversation ID | 会话ID
+     * @param chatId Chat ID | 聊天ID
+     * @param options Request options | 请求选项
+     * @return CreateChatData Chat information | 聊天信息
+     */
     private suspend fun retrieveChat(
         conversationId: String, 
         chatId: String, 
@@ -89,7 +116,6 @@ class ChatService : APIBase() {
         require(conversationId.isNotBlank()) { "conversationId cannot be empty" }
         require(chatId.isNotBlank()) { "chatId cannot be empty" }
         
-        println("retrieving...")
         val apiUrl = "/v3/chat/retrieve?conversation_id=$conversationId&chat_id=$chatId"
         return post<CreateChatData>(
             path = apiUrl,
@@ -98,6 +124,13 @@ class ChatService : APIBase() {
         )
     }
 
+    /**
+     * Cancel an ongoing chat | 取消进行中的聊天
+     * @param conversationId Conversation ID | 会话ID
+     * @param chatId Chat ID | 聊天ID
+     * @param options Request options | 请求选项
+     * @return CreateChatData Cancelled chat information | 已取消的聊天信息
+     */
     suspend fun cancelChat(
         conversationId: String, 
         chatId: String, 
@@ -112,6 +145,12 @@ class ChatService : APIBase() {
         ), options)
     }
 
+    /**
+     * List messages in a chat | 列出聊天中的消息
+     * @param conversationId Conversation ID | 会话ID
+     * @param chatId Chat ID | 聊天ID
+     * @return List<ChatV3Message> List of chat messages | 聊天消息列表
+     */
     private suspend fun listMessages(
         conversationId: String, 
         chatId: String,
@@ -128,10 +167,21 @@ class ChatService : APIBase() {
         ))
     }
 
+    /**
+     * Handle additional messages processing | 处理额外消息
+     * @param additionalMessages List of messages to process | 要处理的消息列表
+     * @return List<EnterMessage> Processed messages | 处理后的消息列表
+     */
     private fun handleAdditionalMessages(additionalMessages: List<EnterMessage>?): List<EnterMessage>? {
         return additionalMessages?.map { it.copy(content = it.content ?: "") }
     }
 
+    /**
+     * Submit tool outputs | 提交工具输出
+     * @param params Tool outputs parameters | 工具输出参数
+     * @param options Request options | 请求选项
+     * @return CreateChatData Chat result | 聊天结果
+     */
     suspend fun submitToolOutputs(
         params: SubmitToolOutputsReq,
         options: RequestOptions? = null
@@ -144,6 +194,12 @@ class ChatService : APIBase() {
         return post(apiUrl, params, options)
     }
 
+    /**
+     * Submit tool outputs with streaming | 以流式方式提交工具输出
+     * @param params Tool outputs parameters | 工具输出参数
+     * @param options Request options | 请求选项
+     * @return Flow<StreamChatData> Stream of chat data | 聊天数据流
+     */
     suspend fun submitToolOutputsStream(
         params: SubmitToolOutputsReq,
         options: RequestOptions? = null
@@ -157,14 +213,18 @@ class ChatService : APIBase() {
         eventFlow.collect { event ->
             val chatData = sseEvent2ChatData(event)
             emit(chatData)
-            // If event is "[DONE]", end
             if (chatData.event == EventType.DONE) {
-                println("SSE DONE.")
                 return@collect
             }
         }
     }
 
+    /**
+     * Stream chat messages | 流式传输聊天消息
+     * @param params Stream chat parameters | 流式聊天参数
+     * @param options Request options | 请求选项
+     * @return Flow<StreamChatData> Stream of chat data | 聊天数据流
+     */
     fun stream(
         params: StreamChatReq, 
         options: RequestOptions? = null
@@ -183,9 +243,7 @@ class ChatService : APIBase() {
         eventFlow.collect { event ->
             val chatData = sseEvent2ChatData(event)
             emit(chatData)
-            // If event is "[DONE]", end
             if (chatData.event == EventType.DONE) {
-                println("SSE DONE.")
                 return@collect
             }
         }

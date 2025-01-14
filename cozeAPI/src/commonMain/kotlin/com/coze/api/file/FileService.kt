@@ -8,17 +8,22 @@ import com.coze.api.model.file.FileObject
 import io.ktor.client.request.forms.*
 import io.ktor.http.*
 
+/**
+ * File Service | 文件服务
+ * Handles file upload and retrieval operations | 处理文件上传和获取操作
+ */
 class FileService : APIBase() {
     /**
-     * 上传文件到Coze平台
-     * @param params 上传文件的参数
-     * @param options 请求选项
-     * @return 上传的文件信息
+     * Upload file to Coze platform | 上传文件到Coze平台
+     * @param params Upload file parameters | 上传文件参数
+     * @param options Request options | 请求选项
+     * @return FileObject File information | 文件信息
      */
     suspend fun upload(
         params: CreateFileReq,
         options: RequestOptions? = null
     ): ApiResponse<FileObject> {
+        // Parameter validation | 参数验证
         require(params.file.isNotEmpty()) { "file cannot be empty" }
         require(params.fileName.isNotBlank()) { "fileName cannot be empty" }
         require(params.mimeType.isNotBlank()) { "mimeType cannot be empty" }
@@ -46,16 +51,14 @@ class FileService : APIBase() {
             )
         )
         
-        val response = post<FileObject>("/v1/files/upload", formData, requestOptions)
-        println("[文件上传结果] $response")
-        return response
+        return post<FileObject>("/v1/files/upload", formData, requestOptions)
     }
 
     /**
-     * 获取已上传文件的信息
-     * @param fileId 文件ID
-     * @param options 请求选项
-     * @return 文件信息
+     * Retrieve uploaded file information | 获取已上传文件的信息
+     * @param fileId File ID | 文件ID
+     * @param options Request options | 请求选项
+     * @return FileObject File information | 文件信息
      */
     suspend fun retrieve(
         fileId: String,

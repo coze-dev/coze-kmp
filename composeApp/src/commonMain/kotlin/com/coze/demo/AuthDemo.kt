@@ -1,22 +1,26 @@
 package com.coze.demo
 
 import com.coze.api.helper.TokenManager
+import com.coze.demo.auth.AuthService
 
 /**
- * Demo object for authentication functionality
+ * Authentication Demo | 认证演示
+ * Demonstrates authentication functionality | 演示认证功能
  */
 object AuthDemo {
+    init {
+        // Initialize TokenManager with AuthService | 使用 AuthService 初始化 TokenManager
+        TokenManager.init(AuthService)
+    }
+
     /**
-     * Test JWT authentication
-     * @return JWT access token if successful, null otherwise
+     * Get JWT authentication token | 获取JWT认证令牌
+     * @return String? JWT access token if successful | 成功时返回JWT访问令牌
      */
     suspend fun getJWTAuth(): String? {
         return try {
-            val token = TokenManager.getTokenAsync()
-            println("[AuthDemo] Successfully obtained token $token")
-            token
+            TokenManager.getToken()
         } catch (e: Exception) {
-            println("[AuthDemo] JWT authentication failed: ${e.message}")
             null
         }
     }

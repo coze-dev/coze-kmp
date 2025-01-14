@@ -1,5 +1,3 @@
-// @file:OptIn(kotlinx.serialization.ExperimentalSerializationApi::class)
-
 package com.coze.api.helper
 
 import com.coze.api.model.ApiResponse
@@ -25,13 +23,27 @@ import kotlinx.serialization.serializer
 
 const val API_URL = "https://api.coze.com"
 
+/**
+ * Create platform-specific HTTP client engine | 创建平台特定的HTTP客户端引擎
+ */
 expect fun createPlatformEngine(): HttpClientEngine
 
+/**
+ * Request options for HTTP calls | HTTP请求选项
+ * @property headers Custom headers | 自定义请求头
+ * @property params Query parameters | 查询参数
+ */
 data class RequestOptions(
     val headers: Map<String, String> = emptyMap(),
     val params: Map<String, String> = emptyMap()
 )
 
+/**
+ * API Client for making HTTP requests | HTTP请求的API客户端
+ * @property baseURL Base URL for API calls | API调用的基础URL
+ * @property token Authentication token | 认证令牌
+ * @property client Custom HTTP client | 自定义HTTP客户端
+ */
 open class APIClient(
     private val baseURL: String? = API_URL,
     val token: String? = null,
@@ -63,6 +75,14 @@ open class APIClient(
     var httpClient: HttpClient = client ?: defaultClient
         private set
 
+    /**
+     * Make HTTP request | 发送HTTP请求
+     * @param method HTTP method | HTTP方法
+     * @param path Request path | 请求路径
+     * @param token Authentication token | 认证令牌
+     * @param body Request body | 请求体
+     * @param options Request options | 请求选项
+     */
     suspend fun request(
         method: HttpMethod,
         path: String,
@@ -83,7 +103,6 @@ open class APIClient(
         } else path
 
         val url = (baseURL ?: API_URL) + fullPath
-        println("[HTTP] Request URL: $url")
 
         return try {
             val response = httpClient.request(url) {
@@ -121,11 +140,15 @@ open class APIClient(
 
             response
         } catch (e: Exception) {
-            println("[HTTP] Request failed: ${e.message}")
             throw e
         }
     }
 
+    /**
+     * Make GET request | 发送GET请求
+     * @param path Request path | 请求路径
+     * @param options Request options | 请求选项
+     */
     suspend inline fun <reified T> get(
         path: String,
         options: RequestOptions? = null
@@ -142,45 +165,65 @@ open class APIClient(
         return jsonUtil.decodeFromString(serializer<T>(), responseText)
     }
 
+    /**
+     * Make POST request | 发送POST请求
+     * @param path Request path | 请求路径
+     * @param payload Request payload | 请求负载
+     * @param options Request options | 请求选项
+     */
     suspend inline fun <reified T> post(
         path: String,
         payload: Any? = null,
         options: RequestOptions? = null
     ): T {
-        println("[HTTP] Posting to $path with payload $payload")
         val response = request(HttpMethod.Post, path, null, payload, options)
         val responseText = response.bodyAsText()
         return jsonUtil.decodeFromString(serializer<T>(), responseText)
     }
 
+    /**
+     * Make PUT request | 发送PUT请求
+     * @param path Request path | 请求路径
+     * @param payload Request payload | 请求负载
+     * @param options Request options | 请求选项
+     */
     suspend inline fun <reified T> put(
         path: String,
         payload: Any? = null,
         options: RequestOptions? = null
     ): T {
-        println("[HTTP] Putting to $path with payload $payload")
         val response = request(HttpMethod.Put, path, null, payload, options)
         val responseText = response.bodyAsText()
         return jsonUtil.decodeFromString(serializer<T>(), responseText)
     }
 
+    /**
+     * Make DELETE request | 发送DELETE请求
+     * @param path Request path | 请求路径
+     * @param payload Request payload | 请求负载
+     * @param options Request options | 请求选项
+     */
     suspend inline fun <reified T> delete(
         path: String,
         payload: Any? = null,
         options: RequestOptions? = null
     ): T {
-        println("[HTTP] Deleting from $path with payload $payload")
         val response = request(HttpMethod.Delete, path, null, payload, options)
         val responseText = response.bodyAsText()
         return jsonUtil.decodeFromString(serializer<T>(), responseText)
     }
 
+    /**
+     * Create Server-Sent Events connection | 创建服务器发送事件连接
+     * @param path Request path | 请求路径
+     * @param body Request body | 请求体
+     * @param options Request options | 请求选项
+     */
     fun sse(
         path: String,
         body: Any? = null,
         options: RequestOptions? = null
     ): Flow<ServerSentEvent> = flow {
-        println("[HTTP] SSE posting to $path with payload $body")
         httpClient.sse(baseURL + path, {
             method = HttpMethod.Post
             token?.let { 
@@ -189,6 +232,7 @@ open class APIClient(
             header("Accept", "text/event-stream")
             header("Cache-Control", "no-cache")
             header("Connection", "keep-alive")
+            header("Keep-Alive", "timeout=60")
             options?.headers?.forEach { (key, value) ->
                 header(key, value)
             }
@@ -199,21 +243,19 @@ open class APIClient(
         }) {
             var shouldContinue = true
             var eventCount = 0
-            val maxEvents = 500 // 最大事件数限制
+            val maxEvents = 500 // Maximum event limit | 最大事件数限制
             
             while (shouldContinue && eventCount < maxEvents) {
                 try {
                     incoming.collect { event ->
                         if (!isActive) {
-                            println("[HTTP] SSE connection is no longer active")
                             shouldContinue = false
                             return@collect
                         }
                         
                         eventCount++
-                        println("[HTTP] SSE event ($eventCount/$maxEvents): $event")
                         val eventType = event.event?.let { EventType.fromValue(it) }
-                        // 如果 event.event 是 EventType.ERROR，则打印 msg 然后结束
+                        // If event type is ERROR, end the connection | 如果事件类型是 ERROR，结束连接
                         if (eventType == EventType.ERROR) {
                             shouldContinue = false
                             return@collect
@@ -225,19 +267,21 @@ open class APIClient(
                         }
                     }
                 } catch (e: Exception) {
-                    println("[HTTP] SSE connection error: ${e.message}")
                     shouldContinue = false
                     throw e
                 }
             }
             
             if (eventCount >= maxEvents) {
-                println("[HTTP] SSE reached maximum event limit ($maxEvents)")
                 throw Exception("SSE reached maximum event limit")
             }
         }
     }
 
+    /**
+     * Create HTTP client with custom engine | 使用自定义引擎创建HTTP客户端
+     * @param engine HTTP client engine | HTTP客户端引擎
+     */
     fun createHttpClient(engine: HttpClientEngine): HttpClient {
         return HttpClient(engine) {
             install(ContentNegotiation) {
@@ -297,7 +341,7 @@ open class APIBase(
         while (true) {
             println("[HTTP] Getting client with token")
             try {
-                val token = TokenManager.getTokenAsync(true)
+                val token = TokenManager.getToken(true)
                 apiClient = APIClient(baseURL, token, httpClient)
                 return apiClient!!
             } catch (e: Exception) {

@@ -6,70 +6,61 @@ import com.coze.api.model.EnterMessage
 import com.coze.api.model.conversation.*
 
 /**
- * Demo class for conversation management functionality
+ * Conversation Demo | 对话演示
+ * Demonstrates conversation management functionality | 演示对话管理功能
  */
 class ConversationDemo {
     private val conversationService = ConversationService()
     private val botId = "7373880376026103809"
 
     /**
-     * List all conversations with pagination support
+     * List all conversations with pagination | 分页列出所有对话
+     * @param pageNum Page number | 页码
+     * @param pageSize Page size | 每页大小
+     * @return ApiResponse<ListConversationsData> List of conversations | 对话列表
      */
     suspend fun listConversations(pageNum: Int = 1, pageSize: Int = 50): ApiResponse<ListConversationsData> {
-        return try {
-            val request = ListConversationReq(
-                botId = botId,
-                pageNum = pageNum,
-                pageSize = pageSize
-            )
-            conversationService.list(request)
-        } catch (e: Exception) {
-            println("[ConversationDemo] List conversations failed: ${e.message}")
-            throw e
-        }
+        val request = ListConversationReq(
+            botId = botId,
+            pageNum = pageNum,
+            pageSize = pageSize
+        )
+        return conversationService.list(request)
     }
 
     /**
-     * Create a new conversation with optional messages and metadata
+     * Create a new conversation | 创建新对话
+     * @param messages Initial messages | 初始消息
+     * @param metaData Additional metadata | 额外元数据
+     * @return ApiResponse<Conversation> Created conversation | 创建的对话
      */
     suspend fun createConversation(
         messages: List<EnterMessage>? = null,
         metaData: Map<String, String>? = null
     ): ApiResponse<Conversation> {
-        return try {
-            val request = CreateConversationReq(
-                messages = messages,
-                metaData = metaData,
-                botId = botId
-            )
-            conversationService.create(request)
-        } catch (e: Exception) {
-            println("[ConversationDemo] Create conversation failed: ${e.message}")
-            throw e
-        }
+        val request = CreateConversationReq(
+            messages = messages,
+            metaData = metaData,
+            botId = botId
+        )
+        return conversationService.create(request)
     }
 
     /**
-     * Get conversation details by ID
+     * Get conversation details | 获取对话详情
+     * @param conversationId Conversation ID | 对话ID
+     * @return ApiResponse<Conversation> Conversation details | 对话详情
      */
     suspend fun getConversation(conversationId: String): ApiResponse<Conversation> {
-        return try {
-            conversationService.retrieve(conversationId)
-        } catch (e: Exception) {
-            println("[ConversationDemo] Get conversation failed: ${e.message}")
-            throw e
-        }
+        return conversationService.retrieve(conversationId)
     }
 
     /**
-     * Clear a conversation by ID
+     * Clear a conversation | 清除对话
+     * @param conversationId Conversation ID | 对话ID
+     * @return ApiResponse<ConversationSession> Cleared conversation session | 清除的对话会话
      */
     suspend fun clearConversation(conversationId: String): ApiResponse<ConversationSession> {
-        return try {
-            conversationService.clear(conversationId)
-        } catch (e: Exception) {
-            println("[ConversationDemo] Clear conversation failed: ${e.message}")
-            throw e
-        }
+        return conversationService.clear(conversationId)
     }
 }

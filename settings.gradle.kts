@@ -1,4 +1,4 @@
-rootProject.name = "CozeAPI"
+rootProject.name = "CozeKMPApi"
 enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
 
 pluginManagement {
@@ -29,3 +29,5 @@ dependencyResolutionManagement {
 }
 
 include(":composeApp")
+include(":cozeAPI")
+// project(":composeApp").name = "coze-api"

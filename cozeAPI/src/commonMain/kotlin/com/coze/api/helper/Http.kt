@@ -1,3 +1,5 @@
+// @file:OptIn(kotlinx.serialization.ExperimentalSerializationApi::class)
+
 package com.coze.api.helper
 
 import com.coze.api.model.ApiResponse

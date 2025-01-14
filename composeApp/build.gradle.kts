@@ -1,4 +1,3 @@
-import com.vanniktech.maven.publish.SonatypeHost
 import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
@@ -11,7 +10,6 @@ plugins {
     kotlin("plugin.serialization") version "2.0.0"
     // ios plugins
     id("co.touchlab.skie") version "0.9.5"
-    id("com.vanniktech.maven.publish") version "0.30.0"
 }
 
 kotlin {
@@ -20,10 +18,9 @@ kotlin {
         compilerOptions {
             jvmTarget.set(JvmTarget.JVM_11)
         }
-        dependencies {
-        }
+//        publishLibraryVariants("release", "debug")
     }
-
+    
     listOf(
         iosX64(),
         iosArm64(),
@@ -32,47 +29,45 @@ kotlin {
         iosTarget.binaries.framework {
             baseName = "ComposeApp"
             isStatic = true
+            export(libs.kotlinx.coroutines.core)
+            export(libs.ktor.client.core)
+            export(libs.ktor.client.darwin)
+            export(libs.kotlinx.datetime)
+            binaryOption("bundleId", "com.coze.api")
         }
+    }
+
+    @OptIn(ExperimentalKotlinGradlePluginApi::class)
+    applyDefaultHierarchyTemplate {
     }
 
     sourceSets {
         commonMain.dependencies {
+            api(libs.kotlinx.coroutines.core)
+            api(libs.kotlinx.datetime)
+            api(libs.ktor.client.core)
+            api(libs.ktor.client.content.negotiation)
+            api(libs.ktor.serialization.kotlinx.json)
+            api(libs.ktor.client.logging)
+            
+            // Compose dependencies
             implementation(compose.runtime)
             implementation(compose.foundation)
             implementation(compose.material)
+            implementation(compose.material3)
             implementation(compose.ui)
+            @OptIn(org.jetbrains.compose.ExperimentalComposeLibrary::class)
             implementation(compose.components.resources)
-            implementation(compose.components.uiToolingPreview)
-            implementation(libs.androidx.lifecycle.viewmodel)
-            implementation(libs.androidx.lifecycle.runtime.compose)
-
-            // custom dependencies
-            implementation(libs.kotlinx.datetime)
-            implementation(libs.kotlinx.coroutines.core)
-
-            // our http client
-            implementation(libs.ktor.client.core)
-            implementation(libs.ktor.client.content.negotiation)
-            implementation(libs.ktor.serialization.kotlinx.json)
-            implementation(libs.ktor.client.logging)
+            api(project(":cozeAPI"))
         }
         androidMain.dependencies {
-            implementation(compose.preview)
             implementation(libs.androidx.activity.compose)
-            // android client
-            implementation(libs.ktor.client.android)
-            implementation(libs.ktor.client.cio)
-
-            implementation(libs.androidx.lifecycle.viewmodel.ktx)
-            implementation(libs.lifecycle.runtime.compose)
-            implementation(libs.androidx.lifecycle.viewmodel.compose)
+            implementation(libs.androidx.lifecycle.runtime.compose)
+            implementation(compose.preview)
+            implementation(compose.uiTooling)
         }
         iosMain.dependencies {
-            // ios client
-            implementation(libs.ktor.client.darwin)
-            api(libs.kotlinx.coroutines.core)
-            api(libs.ktor.client.core)
-            api(libs.kotlinx.datetime)
+            api(libs.ktor.client.darwin)
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
@@ -80,6 +75,7 @@ kotlin {
             implementation(libs.kotlinx.coroutines.test)
         }
     }
+
 }
 
 android {
@@ -87,63 +83,32 @@ android {
     compileSdk = libs.versions.android.compileSdk.get().toInt()
 
     defaultConfig {
-        applicationId = "com.coze.api"
         minSdk = libs.versions.android.minSdk.get().toInt()
-        targetSdk = libs.versions.android.targetSdk.get().toInt()
-        versionCode = 1
-        versionName = "1.0"
+        
+//        consumerProguardFiles("consumer-rules.pro")
     }
-    packaging {
-        resources {
-            excludes += "/META-INF/{AL2.0,LGPL2.1}"
-        }
-    }
+    
     buildTypes {
-        getByName("release") {
+        release {
             isMinifyEnabled = false
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
     }
+    
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
+    }
+    
+    publishing {
+        singleVariant("release") {
+            withSourcesJar()
+            withJavadocJar()
+        }
     }
 }
 
 dependencies {
     debugImplementation(compose.uiTooling)
     implementation(libs.accompanist.webview)
-}
-
-mavenPublishing {
-    publishToMavenCentral(SonatypeHost.CENTRAL_PORTAL)
-
-    signAllPublications()
-
-    coordinates(group.toString(), "Coze Kotlin SDK", version.toString())
-
-    pom {
-        name = "Coze API Android Library"
-        description = "An android library for Coze API written in Kotlin."
-        inceptionYear = "2025"
-        url = "https://github.com/coze-dev/coze-kmp/"
-        licenses {
-            license {
-                name = "The Apache License, Version 2.0"
-                url = "https://www.apache.org/licenses/LICENSE-2.0.txt"
-                distribution = "https://www.apache.org/licenses/LICENSE-2.0.txt"
-            }
-        }
-        developers {
-            developer {
-                id = "jsongo@qq.com"
-                name = "lingyibin"
-                url = "https://www.coze.com/"
-            }
-        }
-        scm {
-            url = "https://github.com/coze-dev/coze-kmp/"
-            connection = "scm:git:git://github.com/coze-dev/coze-kmp.git"
-            developerConnection = "scm:git:ssh://git@github.com/coze-dev/coze-kmp.git"
-        }
-    }
 }

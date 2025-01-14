@@ -8,6 +8,17 @@ plugins {
     kotlin("plugin.serialization") version "2.0.0"
     id("co.touchlab.skie") version "0.9.5"
     id("com.vanniktech.maven.publish") version "0.30.0"
+    signing
+}
+
+signing {
+    val keyId = System.getenv("ORG_GRADLE_PROJECT_signingInMemoryKeyId")
+    val key = System.getenv("ORG_GRADLE_PROJECT_signingInMemoryKey")
+    val password = System.getenv("ORG_GRADLE_PROJECT_signingInMemoryKeyPassword")
+    if (keyId != null && key != null && password != null) {
+        useInMemoryPgpKeys(keyId, key, password)
+    }
+    sign(publishing.publications)
 }
 
 skie {
@@ -81,7 +92,7 @@ mavenPublishing {
     publishToMavenCentral(SonatypeHost.CENTRAL_PORTAL)
     signAllPublications()
     coordinates(
-        groupId = "com.coze.api",
+        groupId = "com.coze",
         artifactId = "coze-kotlin",
         version = version.toString()
     )

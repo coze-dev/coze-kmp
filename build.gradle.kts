@@ -7,3 +7,10 @@ plugins {
     alias(libs.plugins.composeCompiler) apply false
     alias(libs.plugins.kotlinMultiplatform) apply false
 }
+
+allprojects {
+    extra.apply {
+        set("ossrhUsername", System.getenv("ORG_GRADLE_PROJECT_mavenCentralUsername") ?: "")
+        set("ossrhPassword", System.getenv("ORG_GRADLE_PROJECT_mavenCentralPassword") ?: "")
+    }
+}

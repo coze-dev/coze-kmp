@@ -2,6 +2,7 @@ name: Release
 on:
   release:
     types: [released, prereleased]
+  workflow_dispatch:  # 添加这一行，启用手动触发
 jobs:
   publish:
     name: Release build and publish

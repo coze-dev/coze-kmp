@@ -93,7 +93,7 @@ mavenPublishing {
     signAllPublications()
     coordinates(
         groupId = "com.coze",
-        artifactId = "coze-kotlin",
+        artifactId = "coze-api-android",
         version = version.toString()
     )
     pom {

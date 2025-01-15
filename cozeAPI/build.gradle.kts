@@ -94,7 +94,7 @@ mavenPublishing {
     coordinates(
         groupId = "com.coze",
         artifactId = "coze-api-android",
-        version = version.toString()
+        version = "0.2.1"
     )
     pom {
         name = "Coze API Android Library"

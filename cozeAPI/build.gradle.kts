@@ -1,6 +1,7 @@
 import com.vanniktech.maven.publish.SonatypeHost
 import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import org.gradle.api.publish.maven.MavenPublication
 
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
@@ -91,11 +92,17 @@ android {
 mavenPublishing {
     publishToMavenCentral(SonatypeHost.CENTRAL_PORTAL)
     signAllPublications()
-    coordinates(
-        groupId = "com.coze",
-        artifactId = "coze-api-android",
-        version = "0.2.1"
-    )
+    
+    configure<PublishingExtension> {
+        publications.withType<MavenPublication>().configureEach {
+            if (name == "androidRelease") {
+                artifactId = "coze-api-android"
+                version = "0.2.2"
+                groupId = "com.coze"
+            }
+        }
+    }
+    
     pom {
         name = "Coze API Android Library"
         description = "An android library for Coze API written in Kotlin."
